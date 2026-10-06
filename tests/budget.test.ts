@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { summarizePeriod, indexCategories, moneySplit, walletBalances, loanStates, loggingStreak, goalBalances } from "@/lib/budget/calc";
 import { isWorkDay, periodOf, reserveAmountFor, sortSchedules, type Overrides, type ScheduleLike } from "@/lib/budget/period";
 import { buildReport } from "@/lib/budget/report";
+import { hourLabel, reminderHours, reminderSlot } from "@/lib/budget/reminders";
 import { flipId, isSharedTx, mirrorLoan, mirrorTx } from "@/lib/links/mirror";
 import { localDay, weekStartOf, dayIndex } from "@/lib/budget/week";
 import { money, num, parseAmount, toInput } from "@/lib/money";
@@ -270,6 +271,25 @@ describe("report", () => {
     expect(r.daily.find((d) => d.day === "2026-10-03")?.spent).toBe(0);
     expect(r.daily.find((d) => d.day === WEEK)).toEqual({ day: WEEK, spent: R(200), income: R(2650), saved: R(100) });
     expect(r.weekly[0]).toEqual({ weekStart: WEEK, income: R(2650), spent: R(630), saved: R(100) });
+  });
+});
+
+describe("reminders", () => {
+  it("picks the reminder that is due and what it should look back to", () => {
+    const one = reminderHours(22, null);
+    expect(one).toEqual([22]);
+    expect(reminderSlot(one, 21)).toBe(null);
+    expect(reminderSlot(one, 22)).toEqual({ slot: 0, sinceHour: null });
+    expect(reminderSlot(one, 23)).toEqual({ slot: 0, sinceHour: null });
+
+    const two = reminderHours(22, 14); // set in any order
+    expect(two).toEqual([14, 22]);
+    expect(reminderSlot(two, 9)).toBe(null);
+    expect(reminderSlot(two, 14)).toEqual({ slot: 0, sinceHour: null }); // afternoon: anything today?
+    expect(reminderSlot(two, 21)).toEqual({ slot: 0, sinceHour: null });
+    expect(reminderSlot(two, 22)).toEqual({ slot: 1, sinceHour: 14 }); // evening: anything since 2 pm?
+    expect(reminderHours(22, 22)).toEqual([22]); // the same hour twice is one reminder
+    expect([hourLabel(0), hourLabel(9), hourLabel(12), hourLabel(22)]).toEqual(["12 am", "9 am", "12 pm", "10 pm"]);
   });
 });
 

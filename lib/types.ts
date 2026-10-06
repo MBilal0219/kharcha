@@ -101,6 +101,8 @@ export interface Settings extends SyncMeta {
   budgetAmount: number; // what usually comes in each budget period
   timezone: string;
   reminderHour: number;
+  reminderHour2?: number | null; // an optional second reminder the same day
+  remindAlways?: boolean; // remind at those times even when something was already logged
   extraSavePercent: number; // suggested share of extra income (anything but the budget itself) to save
   bufferTarget: number;
   onboarded: boolean;

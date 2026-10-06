@@ -93,6 +93,8 @@ export const schemas: Record<SyncTable, z.ZodTypeAny> = {
     budgetAmount: money,
     timezone: text(60),
     reminderHour: z.number().int().min(0).max(23),
+    reminderHour2: z.number().int().min(0).max(23).nullable().optional(),
+    remindAlways: z.boolean().optional(),
     extraSavePercent: z.number().int().min(0).max(100),
     bufferTarget: money,
     onboarded: z.boolean(),

@@ -6,6 +6,7 @@ import { BellRing, CalendarCheck, ChevronDown, Coins, HandCoins, Lock, PiggyBank
 import { useAppData } from "@/lib/local/app-data";
 import { addTx, closeDay, moveToGoal, remove, setPeriod } from "@/lib/local/ops";
 import { periodNoun } from "@/lib/budget/period";
+import { reminderHours } from "@/lib/budget/reminders";
 import { dayLong, prettyRange } from "@/lib/budget/week";
 import { money } from "@/lib/money";
 import { defaultGoal } from "@/lib/goal";
@@ -35,7 +36,7 @@ export default function HomePage() {
   const firstName = d.user?.name?.split(" ")[0] || "there";
   const todayTxs = d.txs.filter((t) => t.day === d.today);
   const goal = defaultGoal(d.goals, d.goalBal);
-  const lateAndEmpty = d.hour >= settings.reminderHour && !d.loggedToday;
+  const lateAndEmpty = d.hour >= reminderHours(settings.reminderHour, settings.reminderHour2)[0] && !d.loggedToday;
   const expenseCats = d.categories.filter((c) => c.kind === "expense" && !c.archived && c.key !== "unaccounted");
   const budgetCat = d.categories.find((c) => c.key === "budget");
 

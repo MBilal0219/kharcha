@@ -18,6 +18,8 @@ export interface PushPayload {
   body: string;
   url?: string;
   day?: string;
+  always?: boolean; // sent whether or not anything was logged, so the phone must not replace it with "already logged"
+  since?: string; // ISO time: a later reminder of the day only concerns entries logged after this
 }
 
 /** Sends to every device of a user. Dead subscriptions (404/410) are removed. Returns devices reached. */

@@ -77,6 +77,8 @@ interface Payload {
   body: string;
   url?: string;
   day?: string;
+  since?: string;
+  always?: boolean;
 }
 
 self.addEventListener("push", (event) => {
@@ -95,15 +97,19 @@ self.addEventListener("push", (event) => {
 
       // The server only knows synced entries. If this phone has today's entries waiting to sync,
       // replace the "add your expenses" nudge with a sync nudge.
-      if (p.kind === "daily" && p.day) {
+      if (p.kind === "daily" && p.day && !p.always) {
         try {
-          const local = await localDb.transactions.where("day").equals(p.day).filter((t) => !t.deletedAt).toArray();
-          const closed = await localDb.dayClosures.where("day").equals(p.day).filter((t) => !t.deletedAt).count();
+          // A later reminder of the day only concerns what was logged since the one before it.
+          const { since } = p;
+          const local = since
+            ? await localDb.transactions.filter((t) => !t.deletedAt && t.updatedAt >= since).toArray()
+            : await localDb.transactions.where("day").equals(p.day).filter((t) => !t.deletedAt).toArray();
+          const closed = await localDb.dayClosures.where("day").equals(p.day).filter((t) => !t.deletedAt && (!since || t.updatedAt >= since)).count();
           if (local.length || closed) {
             const waiting = local.filter((t) => t.dirty).length;
             p = {
               ...p,
-              title: waiting ? "Entries waiting to sync" : "Today is logged",
+              title: waiting ? "Entries waiting to sync" : since ? "Up to date" : "Today is logged",
               body: waiting
                 ? `${waiting} ${waiting === 1 ? "entry is" : "entries are"} saved on your phone. Open Kharcha online to sync.`
                 : "All good. See you tomorrow.",

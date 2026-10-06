@@ -2,7 +2,8 @@ import "server-only";
 import type { Document } from "mongodb";
 import { db } from "@/lib/db/client";
 import { sendToUser } from "./push";
-import { addDay, localDay, localHour, DEFAULT_TZ } from "@/lib/budget/week";
+import { addDay, localDateTimeToISO, localDay, localHour, DEFAULT_TZ } from "@/lib/budget/week";
+import { reminderHours, reminderSlot } from "@/lib/budget/reminders";
 import { indexCategories, summarizePeriod, loanStates } from "@/lib/budget/calc";
 import { isWorkDay, periodNoun, periodOf, sortSchedules, type Overrides } from "@/lib/budget/period";
 import { money } from "@/lib/money";
@@ -68,7 +69,8 @@ export async function runDaily(now = new Date()) {
     const settings = (await database.collection("settings").findOne({ userId })) as unknown as Settings | null;
     const tz = settings?.timezone ?? DEFAULT_TZ;
     const currency = settings?.currency ?? "USD";
-    if (localHour(now, tz) < (settings?.reminderHour ?? 22)) {
+    const reminder = reminderSlot(reminderHours(settings?.reminderHour ?? 22, settings?.reminderHour2), localHour(now, tz));
+    if (!reminder) {
       results[userId] = "too-early";
       continue;
     }
@@ -110,24 +112,33 @@ export async function runDaily(now = new Date()) {
       });
     }
 
-    const logged =
-      (await database.collection("transactions").findOne({ userId, day: today, deletedAt: null })) ||
-      (await database.collection("dayClosures").findOne({ userId, day: today, deletedAt: null }));
-    if (logged) {
+    // The day's first reminder asks "anything logged today?". A later one asks "anything logged since the last reminder?".
+    const since = reminder.sinceHour === null ? null : localDateTimeToISO(today, `${String(reminder.sinceHour).padStart(2, "0")}:00:00`, tz);
+    const logged = since
+      ? (await database.collection("transactions").findOne({ userId, deletedAt: null, updatedAt: { $gte: since } })) ||
+        (await database.collection("dayClosures").findOne({ userId, day: today, deletedAt: null, updatedAt: { $gte: since } }))
+      : (await database.collection("transactions").findOne({ userId, day: today, deletedAt: null })) ||
+        (await database.collection("dayClosures").findOne({ userId, day: today, deletedAt: null }));
+    const always = settings?.remindAlways === true;
+    if (logged && !always) {
       results[userId] = "logged";
       continue;
     }
-    if (!(await claim(userId, today, "daily"))) {
+    if (!(await claim(userId, today, reminder.slot === 0 ? "daily" : `daily-${reminder.slot}`))) {
       results[userId] = "already-sent";
       continue;
     }
     const left = sum.moneyIn > 0 ? ` ${money(Math.max(sum.spendable, 0), currency)} left this ${noun}.` : "";
     await sendToUser(userId, {
       kind: "daily",
-      title: "Add today's expenses",
-      body: `Nothing logged today yet.${left} Takes 10 seconds.`,
+      title: logged ? "Anything else to add?" : since ? "Anything to add?" : "Add today's expenses",
+      body: logged
+        ? `${money(sum.spentToday, currency)} spent today.${left}`
+        : `${since ? "Nothing logged since your last reminder." : "Nothing logged today yet."}${left} Takes 10 seconds.`,
       url: "/add",
       day: today,
+      ...(since ? { since } : {}),
+      ...(always ? { always } : {}),
     });
     results[userId] = "sent";
   }

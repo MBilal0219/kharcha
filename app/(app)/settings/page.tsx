@@ -8,6 +8,7 @@ import { useAppData } from "@/lib/local/app-data";
 import { remove, setDefaultWallet, updateSettings, upsertTemplate, upsertWallet, patch as patchRow } from "@/lib/local/ops";
 import { syncNow } from "@/lib/local/sync";
 import { exportBackup, importBackup, clearLocal } from "@/lib/local/backup";
+import { hourLabel } from "@/lib/budget/reminders";
 import { toCSV } from "@/lib/budget/report";
 import { txTitle } from "@/lib/labels";
 import { downloadFile } from "@/lib/download";
@@ -19,6 +20,8 @@ import { CategorySheet, editCategory, newCategory, type CategoryDraft } from "@/
 import { CatIcon } from "@/components/icons";
 import { BudgetSettings, ReserveSettings, SavingSettings, ScheduleSettings } from "@/components/settings-budget";
 import { Button, Card, Field, Segmented, SectionTitle, Sheet, Toggle, inputClass, toast, cx } from "@/components/ui";
+
+const HOURS = Array.from({ length: 18 }, (_, i) => i + 6); // 6 am to 11 pm
 
 export default function SettingsPage() {
   const d = useAppData();
@@ -88,7 +91,7 @@ function Reminders() {
           <Toggle
             checked={state === "on"}
             onChange={(v) => !busy && toggle(v)}
-            label="Evening reminder"
+            label="Reminders"
             sub="Only if nothing is logged that day. Also loan due dates and a summary when your budget period ends."
           />
         )}
@@ -101,20 +104,39 @@ function Reminders() {
             <Bell size={15} /> Send a test
           </Button>
         )}
-        <Field label="Remind me from" hint="In your own time zone. The home screen also shows a banner after this hour if nothing is logged.">
-          <select
-            id="set-reminder-hour"
-            className={inputClass}
-            value={d.settings.reminderHour}
-            onChange={(e) => updateSettings({ reminderHour: Number(e.target.value) })}
-          >
-            {[19, 20, 21, 22, 23].map((h) => (
-              <option key={h} value={h}>
-                {h - 12} pm
-              </option>
-            ))}
-          </select>
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="First reminder">
+            <select id="set-reminder-hour" className={inputClass} value={d.settings.reminderHour} onChange={(e) => updateSettings({ reminderHour: Number(e.target.value) })}>
+              {HOURS.map((h) => (
+                <option key={h} value={h}>
+                  {hourLabel(h)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Second reminder">
+            <select
+              id="set-reminder-hour-2"
+              className={inputClass}
+              value={d.settings.reminderHour2 ?? ""}
+              onChange={(e) => updateSettings({ reminderHour2: e.target.value === "" ? null : Number(e.target.value) })}
+            >
+              <option value="">Off</option>
+              {HOURS.filter((h) => h !== d.settings.reminderHour).map((h) => (
+                <option key={h} value={h}>
+                  {hourLabel(h)}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+        <Toggle
+          checked={d.settings.remindAlways === true}
+          onChange={(v) => updateSettings({ remindAlways: v })}
+          label="Remind me every time"
+          sub={d.settings.remindAlways ? "At these times, whether or not you logged anything" : "Only when nothing is logged (since the earlier reminder, for the second one)"}
+        />
+        <p className="text-xs text-muted">Times are in your own time zone. The home screen also shows a banner after the earlier time if nothing is logged.</p>
       </Card>
     </section>
   );
