@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Kharcha is an offline-first budget tracker PWA for anyone, in any currency: it shows what is safe to spend today. People you track loans with can be linked so both see the same loans. Shared groups (Splitwise-style) are planned, not built. Next.js 15 App Router, TypeScript strict, Tailwind CSS 4, Dexie (IndexedDB), MongoDB via the native driver (no Mongoose), Auth.js v5 (email + password and Google, JWT), Serwist, web-push, Recharts, zod 4, date-fns-tz, Vitest.
 
+Planned work, with the designs already agreed and the decisions still open, is in `BACKLOG.md`. Read it before starting groups, trips, weekly set-aside or family budgets, and update it when one is built or a decision is made.
+
 ## Commands
 
 ```bash
