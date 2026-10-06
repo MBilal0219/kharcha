@@ -3,20 +3,18 @@
 import Link from "next/link";
 import type { Tx } from "@/lib/types";
 import { useAppData } from "@/lib/local/app-data";
-import { prettyDay } from "@/lib/budget/week";
 import { txDirection, txTitle } from "@/lib/labels";
 import { money } from "@/lib/money";
 import { TxBadge } from "./icons";
 import { cx } from "./ui";
 
-export function TxRow({ tx, showDay }: { tx: Tx & { dirty?: 0 | 1 }; showDay?: boolean }) {
+export function TxRow({ tx }: { tx: Tx & { dirty?: 0 | 1 } }) {
   const d = useAppData();
   const cat = tx.categoryId ? d.cats.get(tx.categoryId) : undefined;
   const dir = txDirection(tx);
   const wallet = d.wallets.find((w) => w.id === tx.walletId);
   const inWallet = tx.type !== "transfer" && tx.type !== "saving" && tx.type !== "saving_withdraw"; // jars don't move wallet money
   const sub = [
-    showDay ? prettyDay(tx.day, d.today) : null,
     tx.note,
     tx.type === "expense" && tx.needWant === "want" ? "Want" : null,
     tx.isOneOff ? "One-off" : null,

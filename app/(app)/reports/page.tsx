@@ -61,8 +61,8 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-5 pt-[max(env(safe-area-inset-top),16px)]">
-      <header className="flex items-center justify-between pt-2">
+    <div className="space-y-5">
+      <header className="page-header glass justify-between">
         <h1 className="font-display text-[1.7rem] font-bold tracking-tight">Reports</h1>
         <Button size="sm" variant="outline" onClick={exportCsv}>
           <Download size={16} /> CSV

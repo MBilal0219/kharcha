@@ -6,7 +6,7 @@ import { categoryTotals, type CatIndex, type PeriodSummary } from "@/lib/budget/
 import { prettyDay } from "@/lib/budget/week";
 import { money } from "@/lib/money";
 import type { Tx } from "@/lib/types";
-import { TxRow } from "./tx-row";
+import { DayGroups } from "./day-groups";
 import { Button, Sheet, cx } from "./ui";
 
 function Row({ label, sub, amount, sign, strong }: { label: string; sub?: string; amount: number; sign?: "+" | "−"; strong?: boolean }) {
@@ -121,15 +121,7 @@ export function BreakdownSheet({ open, onClose, onSetAside, ...props }: Props & 
               All history
             </Link>
           </div>
-          {entries.length === 0 ? (
-            <p className="py-3 text-sm text-muted">Nothing logged yet.</p>
-          ) : (
-            <div className="divide-y divide-line">
-              {entries.map((t) => (
-                <TxRow key={t.id} tx={t} showDay />
-              ))}
-            </div>
-          )}
+          {entries.length === 0 ? <p className="py-3 text-sm text-muted">Nothing logged yet.</p> : <DayGroups txs={entries} within="sheet" />}
         </div>
       </div>
     </Sheet>

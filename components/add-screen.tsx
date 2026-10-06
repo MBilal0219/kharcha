@@ -182,8 +182,8 @@ export function AddScreen() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col pt-[max(env(safe-area-inset-top),12px)]">
-      <header className="flex items-center gap-2 py-2">
+    <div className="flex min-h-dvh flex-col">
+      <header className="page-header glass shrink-0 gap-2">
         <button onClick={() => router.back()} aria-label="Back" className="grid h-10 w-10 place-items-center rounded-full bg-surface shadow-card">
           <ArrowLeft size={19} />
         </button>

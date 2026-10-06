@@ -313,7 +313,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
             </button>
           </div>
         </div>
-        <div data-sheet-body className="sheet-pad min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-1">
+        <div data-sheet-body className="sheet-pad min-h-0 flex-1 overflow-y-auto overscroll-contain px-4">
           {last.current.children}
         </div>
       </div>

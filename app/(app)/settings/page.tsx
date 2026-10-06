@@ -24,8 +24,8 @@ export default function SettingsPage() {
   const d = useAppData();
   const router = useRouter();
   return (
-    <div className="space-y-6 pt-[max(env(safe-area-inset-top),16px)]">
-      <header className="flex items-center gap-2 pt-2">
+    <div className="space-y-6">
+      <header className="page-header glass gap-2">
         <button onClick={() => router.back()} aria-label="Back" className="grid h-10 w-10 place-items-center rounded-full bg-surface shadow-card">
           <ArrowLeft size={19} />
         </button>

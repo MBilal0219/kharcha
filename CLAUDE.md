@@ -84,6 +84,7 @@ Screens under `app/(app)` are `"use client"` static shells. No server component 
 - Colors only from the CSS tokens in `app/globals.css` (`bg`, `surface`, `ink`, `accent`, `gold`, `danger`, `ticket-*`, `series-*`). Light and dark themes must both work.
 - `font-display` (Bricolage Grotesque) for headings and big numbers, `font-sans` (Figtree) for body, `tnum` for aligned numbers.
 - A new deployment reaches installed apps through the service worker: `useAppUpdates` (`app-shell.tsx`) checks for one whenever the app returns to the front and reloads once it has taken over.
+- Every screen starts with `<header className="page-header glass">`: it sticks to the top at a fixed height (`--header-h`). Lists of entries use `DayGroups` (`components/day-groups.tsx`): grouped by day with the day's totals, each heading sticking under the header (`within="page"`) or at the top of a sheet (`within="sheet"`). Anything that sticks uses `.glass` / `.glass-surface`.
 - Bottom sheets are `Sheet` from `components/ui.tsx`: it slides in and out and closes by dragging down. Don't build another modal.
 - Reuse `components/ui.tsx` (Button, Card, Sheet, Segmented, Chip, Field, Toggle, Progress, toast). No new UI library.
 - Charts: thin marks, recessive grid, tooltips, colors from `--series-1..3`.

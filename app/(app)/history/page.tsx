@@ -3,12 +3,11 @@
 import { useMemo, useState } from "react";
 import { Search, Receipt } from "lucide-react";
 import { useAppData } from "@/lib/local/app-data";
-import { prettyDay } from "@/lib/budget/week";
 import { txTitle } from "@/lib/labels";
 import { money, num } from "@/lib/money";
 import type { Tx } from "@/lib/types";
-import { TxRow } from "@/components/tx-row";
-import { Card, Chip, Empty, inputClass, cx } from "@/components/ui";
+import { DayGroups } from "@/components/day-groups";
+import { Chip, Empty, inputClass, cx } from "@/components/ui";
 
 type Filter = "all" | "expense" | "income" | "loans" | "savings" | "want";
 
@@ -55,29 +54,16 @@ export default function HistoryPage() {
     });
   }, [d, filter, q, categoryId]);
 
-  const groups = useMemo(() => {
-    const out: { day: string; items: typeof list; spent: number }[] = [];
-    for (const t of list.slice(0, limit)) {
-      let g = out[out.length - 1];
-      if (!g || g.day !== t.day) {
-        g = { day: t.day, items: [], spent: 0 };
-        out.push(g);
-      }
-      g.items.push(t);
-      if (t.type === "expense") g.spent += t.amount;
-    }
-    return out;
-  }, [list, limit]);
-
   const total = list.filter((t) => t.type === "expense").reduce((a, t) => a + t.amount, 0);
   const expenseCats = d.categories.filter((c) => c.kind === "expense" && !c.archived);
 
   return (
-    <div className="space-y-4 pt-[max(env(safe-area-inset-top),16px)]">
-      <header className="pt-2">
+    <div className="space-y-4">
+      <header className="page-header glass justify-between gap-3">
         <h1 className="font-display text-[1.7rem] font-bold tracking-tight">History</h1>
-        <p className="text-sm text-muted">
-          {list.length} entries{total ? ` · ${money(total)} spent` : ""}
+        <p className="tnum text-right text-sm text-muted">
+          {list.length} entries
+          {total ? <span className="block">{money(total)} spent</span> : null}
         </p>
       </header>
 
@@ -103,22 +89,10 @@ export default function HistoryPage() {
         </div>
       )}
 
-      {groups.length === 0 ? (
+      {list.length === 0 ? (
         <Empty icon={<Receipt size={20} />} title="Nothing here yet" text="Entries you add show up here, grouped by day. Tap one to edit or delete it." />
       ) : (
-        groups.map((g) => (
-          <section key={g.day}>
-            <div className="mb-1.5 flex items-baseline justify-between px-1">
-              <h2 className="font-display font-semibold">{prettyDay(g.day, d.today)}</h2>
-              {g.spent > 0 && <span className="tnum text-sm text-muted">{money(g.spent)} spent</span>}
-            </div>
-            <Card className="divide-y divide-line py-1">
-              {g.items.map((t) => (
-                <TxRow key={t.id} tx={t} />
-              ))}
-            </Card>
-          </section>
-        ))
+        <DayGroups txs={list.slice(0, limit)} within="page" />
       )}
 
       {list.length > limit && (

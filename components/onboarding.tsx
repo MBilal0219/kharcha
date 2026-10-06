@@ -44,6 +44,18 @@ export function Onboarding() {
     }
   }
 
+  /** Straight into the app with sensible defaults (weekly, Sunday off, no budget). Everything is in Settings later. */
+  async function skip() {
+    setBusy(true);
+    try {
+      await updateSettings({ currency, timezone, onboarded: true });
+      await saveSchedule({ from: localDay(new Date(), timezone), period: "weekly", startDow: 0, startDom: 1, offDays: DEFAULT_SCHEDULE.offDays });
+      toast("You can set your budget any time in Settings.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <main className="mx-auto w-full max-w-lg space-y-5 px-4 pb-10 pt-[max(env(safe-area-inset-top),24px)]">
       <header className="space-y-3">
@@ -62,7 +74,7 @@ export function Onboarding() {
             ))}
           </select>
         </Field>
-        <Field label="Usual budget" hint="What you normally get each time. You can enter a different amount whenever it changes.">
+        <Field label="Usual budget (optional)" hint="What you normally get each time. Leave it empty if you only want to track spending; you can add it later.">
           <AmountInput id="setup-amount" value={amount} onChange={setAmount} currency={currency} size="lg" />
         </Field>
       </Card>
@@ -87,8 +99,11 @@ export function Onboarding() {
         </Field>
       </Card>
 
-      <Button size="lg" className="w-full" disabled={!budget || busy} onClick={start}>
+      <Button size="lg" className="w-full" disabled={busy} onClick={start}>
         Start
+      </Button>
+      <Button variant="ghost" className="w-full" disabled={busy} onClick={skip}>
+        Skip for now
       </Button>
     </main>
   );

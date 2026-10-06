@@ -31,8 +31,8 @@ function Money() {
   const router = useRouter();
   const tab = (params.get("tab") as Tab) || "savings";
   return (
-    <div className="space-y-5 pt-[max(env(safe-area-inset-top),16px)]">
-      <header className="pt-2">
+    <div className="space-y-5">
+      <header className="page-header glass">
         <h1 className="font-display text-[1.7rem] font-bold tracking-tight">Money</h1>
       </header>
       <Segmented

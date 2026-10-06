@@ -77,13 +77,13 @@ export default function HomePage() {
   const paceLabel = { none: "", good: "On track", watch: "Slow down", over: "Over pace" }[sum.pace];
 
   return (
-    <div className="space-y-5 pt-[max(env(safe-area-inset-top),16px)]">
-      <header className="flex items-center justify-between gap-3 pt-2">
+    <div className="space-y-5">
+      <header className="page-header glass justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm text-muted">
             {dayLong(d.today)} · {prettyRange(period.start, period.end)}
           </p>
-          <h1 className="truncate font-display text-[1.7rem] font-bold tracking-tight">Hi, {firstName}</h1>
+          <h1 className="truncate font-display text-[1.6rem] font-bold leading-tight tracking-tight">Hi, {firstName}</h1>
         </div>
         <div className="flex items-center gap-2">
           <SyncPill />
