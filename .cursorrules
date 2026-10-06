@@ -1,0 +1,48 @@
+You are working on Kharcha, an offline-first weekly pocket-money tracker PWA.
+Stack: Next.js 15 App Router, TypeScript strict, Tailwind CSS 4 (tokens in app/globals.css), Dexie (IndexedDB),
+MongoDB Atlas via the native `mongodb` driver (no Mongoose), Auth.js v5 (Google, JWT), Serwist, web-push, Recharts, zod 4,
+date-fns + date-fns-tz, Vitest.
+
+Domain rules
+- Currency is PKR. Store money as integer rupees. Never use floats. Format with lib/money.ts (rs, num).
+- All day/week logic goes through lib/budget/week.ts in the user's timezone (default Asia/Karachi).
+  Week = Monday–Sunday; spending days are Monday–Saturday; Sunday is the home day.
+- Every transaction stores `day` and `weekStart` strings, computed in lib/local/ops.ts when written.
+- Budget math lives ONLY in lib/budget/*.ts as pure functions that take `today`/`now` as parameters.
+  Never call new Date() inside lib/budget. Components never compute budget numbers themselves.
+- The fare reserve is locked (excluded from spendable) until a 'fare_home' expense is logged or the week's
+  goingHome flag is off. Fare leftover is offered to savings.
+- Savings goals are virtual jars: saving / saving_withdraw never change wallet balances.
+- Loans live in the loans table. Repayments are transactions with loanId. Borrowing from savings is a loan
+  with personId null + a saving_withdraw; repaying it is a saving with loanId.
+- System categories are identified by `key` (breakfast, lunch, fare_home, allowance, indrive, …), never by name.
+
+Offline-first rules
+- IndexedDB (lib/local) is the source of truth for the UI. Screens under app/(app) are "use client" static shells
+  that read through useAppData() (lib/local/app-data.tsx). No server component fetches user data.
+- All writes go through lib/local/ops.ts (save/patch/remove/addTx/…): they set updatedAt, dirty = 1, then requestSync().
+- IDs are crypto.randomUUID() strings used as Mongo _id. Per-user singletons use `${userId}:...` or `settings:${userId}`.
+- Deletes are tombstones (deletedAt). Never hard-delete synced records. Filter out deletedAt everywhere.
+- The only server data endpoint is POST /api/sync (lib/server/sync.ts): zod-validate, upsert on { _id, userId },
+  last-write-wins on updatedAt, stamp syncedAt with server time, return rows with syncedAt > since.
+- When adding a field: update lib/types.ts, lib/db/schemas.ts (or it gets stripped), and any Dexie index if queried.
+- When adding a table: add it to SYNC_TABLES, the Dexie schema (bump the version), and lib/db/schemas.ts.
+
+Server rules
+- userId comes only from requireUserId() (lib/auth/require-user.ts). Never trust a userId from client input.
+- Every Mongo query and update includes { userId }. The `accounts`, `users`, `sessions` collections belong to Auth.js.
+- Cron routes verify CRON_SECRET and claim a reminderLog row (unique index) before sending a push.
+- Keep the Mongo client lazy (lib/db/client.ts) so `next build` works without env vars.
+
+UI rules
+- Mobile-first: design at 375–390px first. Minimum touch target 44px. Bottom tab bar + raised add button.
+- Colors only from CSS tokens (bg, surface, ink, accent, gold, danger, ticket-*, series-*). Both themes must work.
+- Fonts: font-display (Bricolage Grotesque) for headings and big numbers, font-sans (Figtree) for body. Use `tnum` for aligned numbers.
+- Reuse components/ui.tsx (Button, Card, Sheet, Segmented, Chip, Field, Toggle, Progress, toast). No new UI library.
+- Charts: thin marks, recessive grid, tooltips, colors from --series-1..3, text in ink tokens.
+- Copy: short, plain, active voice. Say what happens ("Saved to Emergency buffer"), no apologies.
+
+Quality
+- Write or update Vitest tests in tests/ for any change to lib/budget.
+- Run `npm run lint && npm test && npm run build` before finishing a change.
+- No new dependencies without asking. Keep files focused; split components past ~250 lines.

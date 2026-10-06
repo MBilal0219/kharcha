@@ -1,0 +1,266 @@
+@import "tailwindcss";
+
+/*
+  Kharcha — a weekly pocket-money ledger for someone working away from home.
+  Layout: one-handed phone column, a bus-ticket hero ("safe today" + the locked fare stub),
+  bottom tab bar with a raised add button.
+*/
+:root {
+  --bg: #f2f4ee;
+  --surface: #ffffff;
+  --surface-2: #e8ece2;
+  --surface-3: #dde3d5;
+  --ink: #13201a;
+  --ink-2: #44554b;
+  --muted: #74847a;
+  --line: #d8dfd1;
+  --accent: #1d6b4c;
+  --accent-ink: #ffffff;
+  --accent-soft: #d6eadc;
+  --gold: #a46b00;
+  --gold-soft: #f6e6bf;
+  --danger: #b83a2a;
+  --danger-soft: #f6dcd6;
+  --good: #1f7d47;
+
+  --ticket: #133d2e;
+  --ticket-2: #1b4c3a;
+  --ticket-ink: #f0f6ee;
+  --ticket-muted: #a9c6b6;
+  --ticket-mint: #8fe3b8;
+  --ticket-gold: #f2c14e;
+  --ticket-red: #ff9a86;
+
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --grid: #e1e0d9;
+
+  --shadow: 0 1px 2px rgba(19, 32, 26, 0.06), 0 8px 24px -12px rgba(19, 32, 26, 0.18);
+
+  --font-display: "Bricolage Grotesque Variable", "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Figtree Variable", "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1310;
+    --surface: #131c17;
+    --surface-2: #1a2520;
+    --surface-3: #22302a;
+    --ink: #e9f1eb;
+    --ink-2: #b2c2b8;
+    --muted: #7f9288;
+    --line: #24322b;
+    --accent: #52c08d;
+    --accent-ink: #06140d;
+    --accent-soft: #173326;
+    --gold: #e8b23a;
+    --gold-soft: #33290f;
+    --danger: #f07563;
+    --danger-soft: #3a1c17;
+    --good: #52c08d;
+    --ticket: #16392b;
+    --ticket-2: #1d4636;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --grid: #2c2c2a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1310;
+  --surface: #131c17;
+  --surface-2: #1a2520;
+  --surface-3: #22302a;
+  --ink: #e9f1eb;
+  --ink-2: #b2c2b8;
+  --muted: #7f9288;
+  --line: #24322b;
+  --accent: #52c08d;
+  --accent-ink: #06140d;
+  --accent-soft: #173326;
+  --gold: #e8b23a;
+  --gold-soft: #33290f;
+  --danger: #f07563;
+  --danger-soft: #3a1c17;
+  --good: #52c08d;
+  --ticket: #16392b;
+  --ticket-2: #1d4636;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --grid: #2c2c2a;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-good: var(--good);
+  --color-ticket: var(--ticket);
+  --color-ticket-2: var(--ticket-2);
+  --color-ticket-ink: var(--ticket-ink);
+  --color-ticket-muted: var(--ticket-muted);
+  --color-ticket-mint: var(--ticket-mint);
+  --color-ticket-gold: var(--ticket-gold);
+  --color-ticket-red: var(--ticket-red);
+  --font-display: var(--font-display);
+  --font-sans: var(--font-body);
+  --shadow-card: var(--shadow);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  min-height: 100dvh;
+  overscroll-behavior-y: none;
+}
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+.eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* Bus-ticket hero: notches cut on both sides at the perforation line. */
+.ticket {
+  --cut: 176px;
+  position: relative;
+  background: linear-gradient(160deg, var(--ticket-2), var(--ticket) 55%);
+  color: var(--ticket-ink);
+  border-radius: 24px;
+  -webkit-mask:
+    radial-gradient(circle 12px at 0 var(--cut), #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 12px at 100% var(--cut), #0000 97%, #000) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle 12px at 0 var(--cut), #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 12px at 100% var(--cut), #0000 97%, #000) right / 51% 100% no-repeat;
+}
+.ticket-top {
+  height: var(--cut);
+}
+.perforation {
+  height: 0;
+  margin: 0 18px;
+  border-top: 2px dashed color-mix(in srgb, var(--ticket-ink) 28%, transparent);
+}
+.ticket-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: 0.5;
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      transparent 0 14px,
+      color-mix(in srgb, var(--ticket-ink) 3%, transparent) 14px 15px
+    );
+}
+
+.safe-pad-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);
+}
+.tabbar {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+}
+.sheet-pad {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(12px);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes pop {
+  0% {
+    transform: scale(0.96);
+  }
+  60% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: none;
+  }
+}
+.anim-rise {
+  animation: rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.anim-sheet {
+  animation: sheet-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.anim-pop {
+  animation: pop 0.25s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .anim-rise,
+  .anim-sheet,
+  .anim-pop {
+    animation: none;
+  }
+}
+
+/* Hide number-input spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}

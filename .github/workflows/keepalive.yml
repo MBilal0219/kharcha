@@ -1,0 +1,16 @@
+name: Keep database awake
+
+# Pings /api/health (one tiny query) so the free Atlas cluster never idles out,
+# even if you stop using the app for a while.
+# Repo variable needed: APP_URL (e.g. https://kharcha.vercel.app)
+
+on:
+  schedule:
+    - cron: "0 6 */2 * *" # every 2 days
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl -fsS "${{ vars.APP_URL }}/api/health"

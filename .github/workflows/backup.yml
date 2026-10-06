@@ -1,0 +1,36 @@
+name: Weekly MongoDB backup
+
+# Atlas free clusters have no backups. This dumps the database every Sunday
+# and keeps it as a downloadable artifact for 90 days.
+# Repo secrets needed: MONGODB_URI, BACKUP_PASSPHRASE (a long random string; keep a copy, it is needed to restore)
+
+on:
+  schedule:
+    - cron: "0 19 * * 0" # Sunday 19:00 UTC = Monday 00:00 PKT
+  workflow_dispatch:
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install MongoDB database tools
+        run: |
+          wget -q https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.10.0.deb
+          sudo apt-get install -y ./mongodb-database-tools-ubuntu2204-x86_64-100.10.0.deb
+      - name: Dump
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          # The dump holds every user's data, so it is never uploaded unencrypted.
+          test -n "$BACKUP_PASSPHRASE" || { echo "Set the BACKUP_PASSPHRASE repo secret"; exit 1; }
+          mkdir -p backup
+          mongodump --uri "$MONGODB_URI" --db kharcha --excludeCollection=authTokens --excludeCollection=rateLimits --archive --gzip \
+            | gpg --batch --symmetric --cipher-algo AES256 --passphrase-fd 3 3<<<"$BACKUP_PASSPHRASE" \
+              -o "backup/kharcha-$(date +%F).archive.gz.gpg"
+          # Restore: gpg -d FILE.gpg | mongorestore --uri "$MONGODB_URI" --archive --gzip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kharcha-backup-${{ github.run_id }}
+          path: backup/
+          retention-days: 90
