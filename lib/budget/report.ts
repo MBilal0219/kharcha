@@ -16,8 +16,8 @@ export interface PeriodReport {
   saved: number; // into goals minus out of goals (excluding loan movements)
   need: number;
   want: number;
-  daily: { day: string; spent: number }[];
-  weekly: { weekStart: string; income: number; spent: number }[];
+  daily: { day: string; spent: number; income: number; saved: number }[]; // spent excludes what was paid from set-aside money
+  weekly: { weekStart: string; income: number; spent: number; saved: number }[];
   categories: ReturnType<typeof categoryTotals>;
   incomeCategories: ReturnType<typeof categoryTotals>;
   top: Tx[];
@@ -31,11 +31,11 @@ export function buildReport(allTxs: Tx[], cats: CatIndex, days: string[]): Perio
   const last = days[days.length - 1];
   const inRange = allTxs.filter((t) => !t.deletedAt && t.day >= first && t.day <= last);
   const r = { income: 0, budget: 0, otherIncome: 0, borrowed: 0, repaid: 0, spent: 0, reserved: 0, saved: 0, need: 0, want: 0 };
-  const dailyMap = new Map(days.map((d) => [d, { day: d, spent: 0 }]));
-  const weekMap = new Map<string, { weekStart: string; income: number; spent: number }>();
+  const dailyMap = new Map(days.map((d) => [d, { day: d, spent: 0, income: 0, saved: 0 }]));
+  const weekMap = new Map<string, { weekStart: string; income: number; spent: number; saved: number }>();
   for (const d of days) {
     const ws = weekStartOf(d);
-    if (!weekMap.has(ws)) weekMap.set(ws, { weekStart: ws, income: 0, spent: 0 });
+    if (!weekMap.has(ws)) weekMap.set(ws, { weekStart: ws, income: 0, spent: 0, saved: 0 });
   }
 
   for (const t of inRange) {
@@ -45,6 +45,7 @@ export function buildReport(allTxs: Tx[], cats: CatIndex, days: string[]): Perio
       if (catKey(t, cats) === "budget") r.budget += t.amount;
       else r.otherIncome += t.amount;
       if (wk) wk.income += t.amount;
+      dailyMap.get(t.day)!.income += t.amount;
     } else if (t.type === "expense") {
       r.spent += t.amount;
       if (t.reserveId) r.reserved += t.amount;
@@ -54,8 +55,12 @@ export function buildReport(allTxs: Tx[], cats: CatIndex, days: string[]): Perio
       if (wk) wk.spent += t.amount;
     } else if (t.type === "loan_taken") r.borrowed += t.amount;
     else if (t.type === "loan_repaid") r.repaid += t.amount;
-    else if (t.type === "saving" && !t.loanId) r.saved += t.amount;
-    else if (t.type === "saving_withdraw" && !t.loanId) r.saved -= t.amount;
+    else if ((t.type === "saving" || t.type === "saving_withdraw") && !t.loanId) {
+      const n = t.type === "saving" ? t.amount : -t.amount;
+      r.saved += n;
+      dailyMap.get(t.day)!.saved += n;
+      if (wk) wk.saved += n;
+    }
   }
 
   // Savings curve: running goal balance at the end of each day in the range (all-time history counts).

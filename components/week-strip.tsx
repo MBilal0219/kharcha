@@ -4,13 +4,13 @@ import { dayShort } from "@/lib/budget/week";
 import { money, num } from "@/lib/money";
 import { cx } from "./ui";
 
-/** Up to 7 daily spend bars against the period's even daily share (dashed line). Days off are dimmed. */
+/** Up to 7 daily spend bars against the period's even daily share (dashed line), with any money in under the day. Days off are dimmed. */
 export function WeekStrip({
   days,
   reference,
   today,
 }: {
-  days: { day: string; amount: number; off?: boolean }[];
+  days: { day: string; amount: number; income?: number; off?: boolean }[];
   reference: number;
   today: string;
 }) {
@@ -58,6 +58,7 @@ export function WeekStrip({
           <div key={d.day} className={cx("flex-1 text-center", d.off && d.day !== today && "opacity-50")}>
             <p className={cx("text-[0.7rem] font-semibold", d.day === today ? "text-accent" : "text-muted")}>{dayShort(d.day)}</p>
             <p className="tnum text-[0.7rem] text-ink-2">{d.amount ? num(d.amount) : d.off ? "off" : "–"}</p>
+            <p className="tnum h-4 text-[0.68rem] font-semibold text-good">{d.income ? `+${num(d.income)}` : ""}</p>
           </div>
         ))}
       </div>

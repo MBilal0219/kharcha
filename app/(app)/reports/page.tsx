@@ -11,7 +11,8 @@ import { addDay, dayShort, monthKey, prettyMonth, prettyRange, shiftMonth } from
 import { txTitle } from "@/lib/labels";
 import { money } from "@/lib/money";
 import { downloadFile } from "@/lib/download";
-import { DailyBars, InOutBars, SavingsArea } from "@/components/charts";
+import { DailyBars, FlowBars, SavingsArea } from "@/components/charts";
+import { PeriodBreakdown } from "@/components/period-breakdown";
 import { CatIcon } from "@/components/icons";
 import { Button, Card, Segmented, SectionTitle, cx } from "@/components/ui";
 
@@ -79,6 +80,8 @@ export default function ReportsPage() {
           <ChevronRight size={20} />
         </button>
       </div>
+
+      {periodSum && <PeriodBreakdown title={offset === 0 ? `This ${noun}'s money` : "Money in this period"} sum={periodSum} txs={d.txs} cats={d.cats} noun={offset === 0 ? noun : "period"} />}
 
       {/* headline numbers */}
       <div className="grid grid-cols-2 gap-3">
@@ -154,16 +157,20 @@ export default function ReportsPage() {
         )}
       </Card>
 
-      {rep.weekly.length > 1 && (
-        <Card>
-          <SectionTitle>Money in vs spending by week</SectionTitle>
-          <InOutBars data={rep.weekly} tickFmt={(w) => format(parseISO(w), "d MMM")} />
-          <div className="mt-2 flex gap-4 text-sm text-ink-2">
-            <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[var(--series-1)]" /> Money in</span>
-            <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[var(--series-2)]" /> Spent</span>
-          </div>
-        </Card>
-      )}
+      <Card>
+        <SectionTitle>Money in, saved and spent</SectionTitle>
+        {days.length <= 14 ? (
+          <FlowBars data={rep.daily} xKey="day" tickFmt={tick} labelFmt={dayLabel} />
+        ) : (
+          <FlowBars data={rep.weekly} xKey="weekStart" tickFmt={(w) => format(parseISO(w), "d MMM")} labelFmt={(w) => `Week of ${format(parseISO(w), "d MMM")}`} />
+        )}
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-2">
+          <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[var(--series-1)]" /> Money in <b className="tnum text-ink">{money(rep.income)}</b></span>
+          <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[var(--series-3)]" /> Saved <b className="tnum text-ink">{money(rep.saved)}</b></span>
+          <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[var(--series-2)]" /> Spent <b className="tnum text-ink">{money(spentNoFare)}</b></span>
+        </div>
+        <p className="mt-2 text-sm text-muted">{days.length <= 14 ? "By day." : "By week."} Spent leaves out what was paid from set-aside money.</p>
+      </Card>
 
       {rep.incomeCategories.length > 0 && (
         <Card>

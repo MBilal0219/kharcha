@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { summarizePeriod, indexCategories, walletBalances, loanStates, loggingStreak, goalBalances } from "@/lib/budget/calc";
+import { summarizePeriod, indexCategories, moneySplit, walletBalances, loanStates, loggingStreak, goalBalances } from "@/lib/budget/calc";
 import { isWorkDay, periodOf, reserveAmountFor, sortSchedules, type Overrides, type ScheduleLike } from "@/lib/budget/period";
 import { buildReport } from "@/lib/budget/report";
 import { localDay, weekStartOf, dayIndex } from "@/lib/budget/week";
@@ -211,6 +211,26 @@ describe("summarizePeriod", () => {
     expect(s.spendable).toBe(R(2500 + 150 - 75 - 500));
   });
 
+  it("splits the period's money into parts that add up, and shows money in per day", () => {
+    const txs = [
+      budget,
+      tx({ type: "income", amount: R(310), day: "2026-09-29", categoryId: "c-free" }),
+      tx({ type: "saving", amount: R(310), day: "2026-09-29", goalId: "g1" }),
+      tx({ type: "expense", amount: R(550), day: "2026-09-29", categoryId: "c-food" }),
+      tx({ type: "expense", amount: R(430), day: "2026-10-03", categoryId: "c-bus", reserveId: "r-fare" }),
+      tx({ type: "loan_given", amount: R(100), day: "2026-09-30", loanId: "l9" }),
+    ];
+    const s = sum(txs, "2026-10-03");
+    const m = moneySplit(s);
+    expect(m).toEqual({ total: R(2810), left: R(1420), over: 0, spent: R(550), saved: R(310), setAside: R(430), lent: R(100) });
+    expect(m.left + m.spent + m.saved + m.setAside + m.lent - m.over).toBe(m.total);
+    expect(s.dailySpend.filter((d) => d.income).map((d) => [d.day, d.income])).toEqual([[WEEK, R(2500)], ["2026-09-29", R(310)]]);
+
+    const over = moneySplit(sum([tx({ type: "income", amount: R(100), day: WEEK, categoryId: "c-free" }), tx({ type: "expense", amount: R(250), day: WEEK, categoryId: "c-food" })], WEEK));
+    expect([over.left, over.over]).toEqual([0, R(150)]);
+    expect(over.left + over.spent + over.saved + over.setAside + over.lent - over.over).toBe(over.total);
+  });
+
   it("works for a monthly budget and gives a figure for the next 7 days", () => {
     const monthly = [{ ...sixDay, period: "monthly" as const, startDom: 1, offDays: [5, 6] }];
     const txs = [tx({ type: "income", amount: R(22000), day: "2026-10-01", categoryId: "c-budget" })];
@@ -238,6 +258,7 @@ describe("report", () => {
         tx({ type: "income", amount: R(2500), day: WEEK, categoryId: "c-budget" }),
         tx({ type: "income", amount: R(150), day: WEEK, categoryId: "c-free" }),
         tx({ type: "expense", amount: R(200), day: WEEK, categoryId: "c-food" }),
+        tx({ type: "saving", amount: R(100), day: WEEK, goalId: "g1" }),
         tx({ type: "expense", amount: R(430), day: "2026-10-03", categoryId: "c-bus", reserveId: "r-fare" }),
       ],
       cats,
@@ -246,6 +267,8 @@ describe("report", () => {
     expect([r.spent, r.reserved, r.budget, r.otherIncome]).toEqual([R(630), R(430), R(2500), R(150)]);
     expect(r.incomeCategories.map((c) => c.category?.key)).toEqual(["budget", "freelance"]);
     expect(r.daily.find((d) => d.day === "2026-10-03")?.spent).toBe(0);
+    expect(r.daily.find((d) => d.day === WEEK)).toEqual({ day: WEEK, spent: R(200), income: R(2650), saved: R(100) });
+    expect(r.weekly[0]).toEqual({ weekStart: WEEK, income: R(2650), spent: R(630), saved: R(100) });
   });
 });
 

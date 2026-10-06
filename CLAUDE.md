@@ -81,6 +81,7 @@ Screens under `app/(app)` are `"use client"` static shells. No server component 
 - Bottom sheets are `Sheet` from `components/ui.tsx`: it slides in and out and closes by dragging down. Don't build another modal.
 - Reuse `components/ui.tsx` (Button, Card, Sheet, Segmented, Chip, Field, Toggle, Progress, toast). No new UI library.
 - Charts: thin marks, recessive grid, tooltips, colors from `--series-1..3`.
+- Home must answer "how is my budget?" at first look (the user's standing request): the ticket card shows today's figure and the period's money as one bar (`MoneyBar`: left, spent, saved, set aside, always adding up to the total in). Tapping it opens `BreakdownSheet` with every amount and every entry. Below it: day by day (spent and money in), spending by category, money in by source. Don't add a Home card that shows spending alone.
 - Keep screens simple and easy to navigate (the user's standing request): few things per screen, setup in Settings.
 - Copy: short, plain, active voice. Say what happened ("Saved to Emergency buffer"), no apologies.
 - Split components past ~250 lines.

@@ -7,9 +7,10 @@ import { useAppData } from "@/lib/local/app-data";
 import { endReserve, patch, saveSchedule, setDayOverride, updateSettings, updateTx, upsertReserve } from "@/lib/local/ops";
 import { PERIOD_LABEL, periodNoun, reserveAmountFor, type ScheduleLike } from "@/lib/budget/period";
 import type { Reserve } from "@/lib/types";
-import { DAY_ABBR, DAY_NAMES, addDay } from "@/lib/budget/week";
+import { DAY_ABBR, DAY_NAMES, addDay, prettyDay } from "@/lib/budget/week";
 import { CURRENCIES, money, parseAmount, toInput } from "@/lib/money";
 import { AmountInput } from "./amount-input";
+import { DayPicker } from "./day-picker";
 import { ScheduleFields, type ScheduleDraft } from "./schedule-form";
 import { Button, Card, Field, Segmented, SectionTitle, Sheet, inputClass, toast } from "./ui";
 
@@ -49,15 +50,20 @@ export function BudgetSettings() {
   const s = d.settings;
   const noun = periodNoun(d.period.kind);
 
+  // The budget already logged this period. The daily figure is worked out from this entry, not from the setting.
+  const budgetTxs = d.periodTxs.filter((t) => t.type === "income" && t.categoryId && d.cats.get(t.categoryId)?.key === "budget");
+  const logged = budgetTxs.length === 1 ? budgetTxs[0] : null;
+
+  async function applyToPeriod(n: number) {
+    if (!logged) return;
+    await updateTx(logged.id, { amount: n });
+    toast(`This ${noun}'s budget is now ${money(n)}.`);
+  }
+
   async function saveBudget(n: number) {
-    const was = s.budgetAmount;
     await updateSettings({ budgetAmount: n });
-    // If this period's budget was logged at the usual amount, it follows the change. A different amount was a choice, so it stays.
-    const logged = d.periodTxs.filter((t) => t.type === "income" && t.categoryId && d.cats.get(t.categoryId)?.key === "budget");
-    if (n > 0 && logged.length === 1 && logged[0].amount === was) {
-      await updateTx(logged[0].id, { amount: n });
-      toast(`Budget is now ${money(n)}, for this ${noun} too.`);
-    } else toast("Budget updated");
+    if (n > 0 && logged && logged.amount !== n) await applyToPeriod(n);
+    else toast("Budget updated");
   }
 
   return (
@@ -71,6 +77,29 @@ export function BudgetSettings() {
           value={s.budgetAmount}
           onSave={saveBudget}
         />
+        {logged && s.budgetAmount > 0 && logged.amount !== s.budgetAmount && (
+          <div className="flex items-center justify-between gap-3 rounded-2xl bg-gold-soft p-3 text-sm">
+            <span className="min-w-0">
+              This {noun} is still running on the <b className="tnum">{money(logged.amount)}</b> you logged.
+            </span>
+            <Button size="sm" className="shrink-0" onClick={() => applyToPeriod(s.budgetAmount)}>
+              Make it {money(s.budgetAmount)}
+            </Button>
+          </div>
+        )}
+        {logged && (
+          <div className="flex flex-col gap-1.5">
+            <span className="eyebrow text-muted">This {noun}&apos;s budget was logged on</span>
+            <DayPicker
+              id="set-budget-day"
+              value={logged.day}
+              today={d.today}
+              min={d.period.start}
+              onChange={(day) => day !== logged.day && updateTx(logged.id, { day }).then(() => toast(`Budget moved to ${prettyDay(day, d.today)}.`))}
+            />
+            <span className="text-xs text-muted">Reports and charts show it on this day.</span>
+          </div>
+        )}
         <Field label="Currency" hint="Changes the symbol only. Amounts already entered are not converted.">
           <select id="set-currency" className={inputClass} value={s.currency} onChange={(e) => updateSettings({ currency: e.target.value }).then(() => toast("Currency updated"))}>
             {CURRENCIES.map((c) => (

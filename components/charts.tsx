@@ -8,6 +8,9 @@ import { num, money } from "@/lib/money";
 // Shared chart styling: thin marks, recessive grid, text in ink tokens, hover tooltip on every chart.
 
 const axis = { fontSize: 11, fill: "var(--muted)" };
+// Axis labels are short (3.5K, 1.2M) so large amounts fit the narrow axis; tooltips show the exact figure.
+const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 });
+const axisNum = (v: number) => compact.format(v / 100);
 
 function Tip({ active, payload, label, labelFmt }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string; labelFmt?: (l: string) => string }) {
   if (!active || !payload?.length) return null;
@@ -41,7 +44,7 @@ export function DailyBars({
         <BarChart data={data} margin={{ top: 16, right: 4, left: -18, bottom: 0 }}>
           <CartesianGrid vertical={false} stroke="var(--grid)" />
           <XAxis dataKey="day" tickFormatter={tickFmt} tick={axis} axisLine={{ stroke: "var(--line)" }} tickLine={false} interval="preserveStartEnd" minTickGap={6} />
-          <YAxis tick={axis} axisLine={false} tickLine={false} tickFormatter={(v) => num(v)} width={48} />
+          <YAxis tick={axis} axisLine={false} tickLine={false} tickFormatter={axisNum} width={48} />
           <Tooltip cursor={{ fill: "var(--surface-2)" }} content={<Tip labelFmt={labelFmt} />} />
           {reference ? (
             <ReferenceLine y={reference} stroke="var(--muted)" strokeDasharray="4 4" label={{ value: `limit ${num(reference)}`, position: "insideTopRight", fill: "var(--muted)", fontSize: 10 }} />
@@ -53,17 +56,30 @@ export function DailyBars({
   );
 }
 
-export function InOutBars({ data, tickFmt }: { data: { weekStart: string; income: number; spent: number }[]; tickFmt: (d: string) => string }) {
+/** Money in, saved and spent side by side, per day or per week. */
+export function FlowBars<K extends "day" | "weekStart">({
+  data,
+  xKey,
+  tickFmt,
+  labelFmt,
+}: {
+  data: ({ income: number; saved: number; spent: number } & Record<K, string>)[];
+  xKey: K;
+  tickFmt: (d: string) => string;
+  labelFmt: (d: string) => string;
+}) {
   return (
     <div className="h-52 w-full">
       <ResponsiveContainer>
-        <BarChart data={data} margin={{ top: 8, right: 4, left: -18, bottom: 0 }} barGap={2}>
+        <BarChart data={data} margin={{ top: 8, right: 4, left: -18, bottom: 0 }} barGap={1}>
           <CartesianGrid vertical={false} stroke="var(--grid)" />
-          <XAxis dataKey="weekStart" tickFormatter={tickFmt} tick={axis} axisLine={{ stroke: "var(--line)" }} tickLine={false} />
-          <YAxis tick={axis} axisLine={false} tickLine={false} tickFormatter={(v) => num(v)} width={48} />
-          <Tooltip cursor={{ fill: "var(--surface-2)" }} content={<Tip labelFmt={(l) => `Week of ${tickFmt(l)}`} />} />
-          <Bar dataKey="income" name="Money in" fill="var(--series-1)" radius={[4, 4, 0, 0]} maxBarSize={22} />
-          <Bar dataKey="spent" name="Spent" fill="var(--series-2)" radius={[4, 4, 0, 0]} maxBarSize={22} />
+          <XAxis dataKey={xKey} tickFormatter={tickFmt} tick={axis} axisLine={{ stroke: "var(--line)" }} tickLine={false} interval="preserveStartEnd" minTickGap={6} />
+          <YAxis tick={axis} axisLine={false} tickLine={false} tickFormatter={axisNum} width={48} />
+          <ReferenceLine y={0} stroke="var(--line)" />
+          <Tooltip cursor={{ fill: "var(--surface-2)" }} content={<Tip labelFmt={labelFmt} />} />
+          <Bar dataKey="income" name="Money in" fill="var(--series-1)" radius={[3, 3, 0, 0]} maxBarSize={16} />
+          <Bar dataKey="saved" name="Saved" fill="var(--series-3)" radius={[3, 3, 0, 0]} maxBarSize={16} />
+          <Bar dataKey="spent" name="Spent" fill="var(--series-2)" radius={[3, 3, 0, 0]} maxBarSize={16} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -83,7 +99,7 @@ export function SavingsArea({ data, tickFmt, labelFmt }: { data: { day: string; 
           </defs>
           <CartesianGrid vertical={false} stroke="var(--grid)" />
           <XAxis dataKey="day" tickFormatter={tickFmt} tick={axis} axisLine={{ stroke: "var(--line)" }} tickLine={false} interval="preserveStartEnd" minTickGap={10} />
-          <YAxis tick={axis} axisLine={false} tickLine={false} tickFormatter={(v) => num(v)} width={48} />
+          <YAxis tick={axis} axisLine={false} tickLine={false} tickFormatter={axisNum} width={48} />
           <Tooltip content={<Tip labelFmt={labelFmt} />} />
           <Area type="monotone" dataKey="total" name="Saved" stroke="var(--series-1)" strokeWidth={2} fill="url(#saveFill)" dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }} />
         </AreaChart>

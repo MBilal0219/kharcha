@@ -5,10 +5,13 @@ import { CalendarDays } from "lucide-react";
 import { addDay, prettyDay } from "@/lib/budget/week";
 import { Chip, cx } from "./ui";
 
-/** Which day an entry is for: today by default, the two days before one tap away, any earlier date from the calendar. */
-export function DayPicker({ id, value, onChange, today }: { id: string; value: string; onChange: (day: string) => void; today: string }) {
+/**
+ * Which day an entry is for: today by default, the two days before one tap away, any earlier date from the calendar.
+ * `min` keeps the choice inside a range (e.g. the current budget period).
+ */
+export function DayPicker({ id, value, onChange, today, min }: { id: string; value: string; onChange: (day: string) => void; today: string; min?: string }) {
   const input = useRef<HTMLInputElement>(null);
-  const recent = [today, addDay(today, -1), addDay(today, -2)];
+  const recent = [today, addDay(today, -1), addDay(today, -2)].filter((x) => !min || x >= min);
   const other = !recent.includes(value);
 
   // A plain click on a date field doesn't open the calendar on desktop browsers, so ask for it.
@@ -49,6 +52,7 @@ export function DayPicker({ id, value, onChange, today }: { id: string; value: s
           id={id}
           type="date"
           max={today}
+          min={min}
           value={value}
           tabIndex={-1}
           aria-label="Date"

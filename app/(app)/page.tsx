@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { BellRing, CalendarCheck, ChevronRight, Coins, HandCoins, Lock, PiggyBank, Plus, Settings as Gear, Scale, Flame } from "lucide-react";
+import { BellRing, CalendarCheck, ChevronDown, Coins, HandCoins, Lock, PiggyBank, Plus, Settings as Gear, Scale, Flame } from "lucide-react";
 import { useAppData } from "@/lib/local/app-data";
 import { addTx, closeDay, moveToGoal, remove, setPeriod } from "@/lib/local/ops";
 import { periodNoun } from "@/lib/budget/period";
@@ -17,12 +17,16 @@ import { WeekStrip } from "@/components/week-strip";
 import { TxRow } from "@/components/tx-row";
 import { CashCountSheet } from "@/components/cash-count";
 import { QuickEntrySheet, type QuickEntry } from "@/components/quick-entry";
+import { BreakdownSheet } from "@/components/period-breakdown";
+import { MoneyBar } from "@/components/money-bar";
+import { WhereItWent } from "@/components/home-glance";
 import { ReserveSheet } from "@/components/reserve-sheet";
 
 export default function HomePage() {
   const d = useAppData();
   const { sum, prevSum, settings, period } = d;
   const [reserveOpen, setReserveOpen] = useState(false);
+  const [breakdown, setBreakdown] = useState(false);
   const [cashOpen, setCashOpen] = useState(false);
   const [entry, setEntry] = useState<QuickEntry | null>(null);
   const [newCat, setNewCat] = useState<CategoryDraft | null>(null);
@@ -71,7 +75,6 @@ export default function HomePage() {
   const noMoney = sum.moneyIn === 0;
   const overToday = sum.leftToday < 0;
   const paceLabel = { none: "", good: "On track", watch: "Slow down", over: "Over pace" }[sum.pace];
-  const reservedNow = sum.reserves.length === 0 ? "None" : sum.reserveLocked > 0 ? money(sum.reserveLocked) : sum.reserves.some((r) => r.spent > 0) ? "Done" : "Free";
 
   return (
     <div className="space-y-5 pt-[max(env(safe-area-inset-top),16px)]">
@@ -108,7 +111,7 @@ export default function HomePage() {
       {/* ---------- ticket hero ---------- */}
       <section className="ticket anim-rise overflow-hidden shadow-card" aria-label="Today's budget">
         <div className="ticket-grain" />
-        <div className="ticket-top relative flex flex-col justify-between p-5">
+        <div className="ticket-top relative flex cursor-pointer flex-col justify-between p-5" role="button" tabIndex={0} onClick={() => setBreakdown(true)} onKeyDown={(e) => e.key === "Enter" && setBreakdown(true)}>
           <div className="flex items-start justify-between gap-2">
             <p className="eyebrow text-ticket-muted">{sum.isOffToday ? `Day off · ${noun} left` : overToday ? "Over today's limit" : "Safe to spend today"}</p>
             {paceLabel && (
@@ -144,21 +147,23 @@ export default function HomePage() {
           </div>
         </div>
         <div className="perforation" />
-        <div className="relative grid grid-cols-3 divide-x divide-ticket-ink/15 px-2 py-4 text-center">
-          <div className="px-2">
-            <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-ticket-muted">{noun} left</p>
-            <p className={cx("mt-1 font-display text-lg font-semibold tnum", !noMoney && sum.spendable < 0 && "text-ticket-red")}>{money(noMoney ? 0 : sum.spendable)}</p>
+        <div className="relative px-5 pb-3 pt-4">
+          <div role="button" tabIndex={0} className="cursor-pointer" aria-label={`This ${noun}'s money: see every amount`} onClick={() => setBreakdown(true)} onKeyDown={(e) => e.key === "Enter" && setBreakdown(true)}>
+            <MoneyBar sum={sum} noun={noun} />
+            {period.kind !== "weekly" && !noMoney && (
+              <p className="mt-2 text-sm text-ticket-muted">
+                Safe for the next 7 days: <b className="tnum text-ticket-ink">{money(sum.weekSafe)}</b>
+              </p>
+            )}
           </div>
-          <div className="px-2">
-            <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-ticket-muted">{period.kind === "weekly" ? "Spent" : "Next 7 days"}</p>
-            <p className="mt-1 font-display text-lg font-semibold tnum">{money(period.kind === "weekly" ? sum.spent : sum.weekSafe)}</p>
+          <div className="mt-3 flex items-center justify-between gap-2 border-t border-ticket-ink/15 pt-2">
+            <button onClick={() => setBreakdown(true)} className="flex h-10 items-center gap-1 text-sm font-semibold text-ticket-mint">
+              See every amount <ChevronDown size={16} />
+            </button>
+            <button onClick={() => setReserveOpen(true)} aria-label="Money set aside" className="flex h-10 items-center gap-1.5 text-sm font-semibold text-ticket-gold">
+              <Lock size={13} /> Set aside
+            </button>
           </div>
-          <button className="px-2" onClick={() => setReserveOpen(true)} aria-label="Money set aside">
-            <p className="flex items-center justify-center gap-1 text-[0.7rem] font-semibold uppercase tracking-wider text-ticket-muted">
-              <Lock size={11} /> Set aside
-            </p>
-            <p className="mt-1 font-display text-lg font-semibold tnum text-ticket-gold">{reservedNow}</p>
-          </button>
         </div>
       </section>
 
@@ -268,13 +273,18 @@ export default function HomePage() {
 
       <Card>
         <div className="mb-4 flex items-baseline justify-between gap-2">
-          <h2 className="font-display text-[1.05rem] font-semibold tracking-tight">{period.kind === "weekly" ? "This week" : "These 7 days"}</h2>
-          <Link href="/reports" className="flex shrink-0 items-center text-sm font-semibold text-accent">
-            Report <ChevronRight size={16} />
-          </Link>
+          <h2 className="font-display text-[1.05rem] font-semibold tracking-tight">{period.kind === "weekly" ? "Day by day" : "These 7 days"}</h2>
+          <p className="flex shrink-0 items-center gap-3 text-xs text-muted">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-sm bg-accent" /> Spent
+            </span>
+            <span className="font-semibold text-good">+ Money in</span>
+          </p>
         </div>
         <WeekStrip days={strip} reference={sum.perDay} today={d.today} />
       </Card>
+
+      <WhereItWent sum={sum} txs={d.periodTxs} cats={d.cats} noun={noun} />
 
       {limited.length > 0 && (
         <Card>
@@ -347,6 +357,18 @@ export default function HomePage() {
 
       <QuickEntrySheet entry={entry} onClose={() => setEntry(null)} />
       <CategorySheet draft={newCat} onChange={setNewCat} onClose={() => setNewCat(null)} onSaved={(c) => c.kind === "expense" && setEntry({ category: c })} />
+      <BreakdownSheet
+        open={breakdown}
+        onClose={() => setBreakdown(false)}
+        onSetAside={() => {
+          setBreakdown(false);
+          setReserveOpen(true);
+        }}
+        sum={sum}
+        txs={d.periodTxs}
+        cats={d.cats}
+        noun={noun}
+      />
       <ReserveSheet open={reserveOpen} onClose={() => setReserveOpen(false)} />
       <CashCountSheet open={cashOpen} onClose={() => setCashOpen(false)} />
     </div>

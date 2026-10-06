@@ -65,7 +65,7 @@ export interface PeriodSummary {
   budgetLogged: boolean;
   needSpent: number;
   wantSpent: number;
-  dailySpend: { day: string; amount: number; off: boolean }[];
+  dailySpend: { day: string; amount: number; income: number; off: boolean }[]; // amount = spent that day; income = budget and other money in
 }
 
 /**
@@ -102,11 +102,13 @@ export function summarizePeriod(args: {
     wantSpent: 0,
   };
   const perDay = new Map(period.days.map((d) => [d, 0]));
+  const inPerDay = new Map<string, number>();
   const byReserve = new Map<string, number>();
 
   for (const t of txs) {
     switch (t.type) {
       case "income":
+        inPerDay.set(t.day, (inPerDay.get(t.day) ?? 0) + t.amount);
         if (catKey(t, cats) === "budget") s.budgetIn += t.amount;
         else s.otherIncome += t.amount;
         break;
@@ -230,7 +232,23 @@ export function summarizePeriod(args: {
     spentBeforeToday,
     runOutDay,
     budgetLogged: s.budgetIn > 0,
-    dailySpend: period.days.map((d) => ({ day: d, amount: perDay.get(d) ?? 0, off: !isWork(d) })),
+    dailySpend: period.days.map((d) => ({ day: d, amount: perDay.get(d) ?? 0, income: inPerDay.get(d) ?? 0, off: !isWork(d) })),
+  };
+}
+
+/**
+ * The period's money in parts that add up: left + spent + saved + setAside + lent − over = total.
+ * `setAside` is what is still held plus what was paid out of it; `over` is how far past zero the period is.
+ */
+export function moneySplit(s: PeriodSummary) {
+  return {
+    total: s.moneyIn,
+    left: Math.max(s.spendable, 0),
+    over: Math.max(-s.spendable, 0),
+    spent: s.spent,
+    saved: s.saved,
+    setAside: s.reserveLocked + s.reserveSpent,
+    lent: s.loansGiven + s.loansRepaid,
   };
 }
 
