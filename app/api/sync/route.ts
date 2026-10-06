@@ -13,6 +13,8 @@ export async function POST(req: Request) {
     if (!(await rateLimit(`sync:${userId}`, 120, 60))) return json({ error: "rate_limited" }, 429);
     const body = (await req.json().catch(() => null)) as SyncBody | null;
     if (!body || typeof body !== "object") return json({ error: "bad_request" }, 400);
+    // The phone holds another account's data (the session changed under it): take nothing from it.
+    if (typeof body.user === "string" && body.user !== userId) return json({ error: "wrong_user" }, 409);
     // A phone still holding data from before a "start over" must drop it instead of pushing it back.
     const epoch = await dataEpoch(userId);
     if ((typeof body.epoch === "number" ? body.epoch : 0) !== epoch) return json({ reset: true, epoch });

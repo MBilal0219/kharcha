@@ -8,9 +8,45 @@ import { AppDataProvider, useMaybeAppData } from "@/lib/local/app-data";
 import { getMeta, localDb, setMeta, type CachedUser } from "@/lib/local/db";
 import { syncNow } from "@/lib/local/sync";
 import { DEMO, seedDemo } from "@/lib/local/demo";
-import { Toaster, cx } from "./ui";
+import { Toaster, cx, toast } from "./ui";
 import { Logo } from "./logo";
 import { Onboarding } from "./onboarding";
+
+const ME_TIMEOUT = 10_000;
+
+/** Asks the server who is signed in. null = couldn't reach it (offline, or a connection that never answers). */
+async function whoAmI(): Promise<{ status: number; me?: CachedUser } | null> {
+  if (!navigator.onLine) return null;
+  try {
+    const res = await fetch("/api/me", { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(ME_TIMEOUT) });
+    return { status: res.status, me: res.ok ? ((await res.json()) as CachedUser) : undefined };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A phone that has signed in before opens straight from its own data: the network is never waited for.
+ * The session is then checked in the background.
+ */
+async function checkInBackground(cached: CachedUser) {
+  const r = await whoAmI();
+  if (!r) return;
+  if (r.status === 401) {
+    await setMeta("sync", { status: "needs-login", lastSyncedAt: null, message: "Sign in again to sync." });
+    return;
+  }
+  if (!r.me) return;
+  if (r.me.id !== cached.id) {
+    // A different account signed in on this phone: start clean. (Sync refuses to send the old account's entries.)
+    await Promise.all(localDb.tables.map((t) => t.clear()));
+    await setMeta("user", r.me);
+    location.reload();
+    return;
+  }
+  await setMeta("user", r.me);
+  void syncNow();
+}
 
 async function signInState(): Promise<"ok" | "login" | "offline"> {
   if (DEMO) {
@@ -18,37 +54,64 @@ async function signInState(): Promise<"ok" | "login" | "offline"> {
     return "ok";
   }
   const cached = await getMeta<CachedUser>("user");
-  if (!navigator.onLine) return cached ? "ok" : "offline";
-  try {
-    const res = await fetch("/api/me", { credentials: "same-origin", cache: "no-store" });
-    if (res.status === 401) {
-      if (!cached) return "login";
-      await setMeta("sync", { status: "needs-login", lastSyncedAt: null, message: "Sign in again to sync." });
-      return "ok";
-    }
-    if (!res.ok) return cached ? "ok" : "offline";
-    const me = (await res.json()) as CachedUser;
-    if (cached && cached.id !== me.id) {
-      // A different account signed in on this phone: start clean.
-      await Promise.all(localDb.tables.map((t) => t.clear()));
-    }
-    await setMeta("user", me);
+  if (cached) {
+    void checkInBackground(cached);
     return "ok";
-  } catch {
-    return cached ? "ok" : "offline";
   }
+  const r = await whoAmI();
+  if (!r) return "offline";
+  if (r.status === 401) return "login";
+  if (!r.me) return "offline";
+  await setMeta("user", r.me);
+  return "ok";
+}
+
+/** Picks up a new deployment on an installed app: check when the app comes back to the front, reload once the new version has taken over. */
+function useAppUpdates() {
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const sw = navigator.serviceWorker;
+    let hadController = Boolean(sw.controller);
+    let reloadWhenHidden = false;
+    const onControllerChange = () => {
+      if (!hadController) {
+        hadController = true; // first install on this device: nothing to update from
+        return;
+      }
+      // The old screens point at files the new version replaced. Reload at a moment that can't interrupt typing.
+      if (document.visibilityState === "hidden") location.reload();
+      else {
+        reloadWhenHidden = true;
+        toast("A new version is ready.", { label: "Update", run: () => location.reload() });
+      }
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "hidden") {
+        if (reloadWhenHidden) location.reload();
+        return;
+      }
+      void sw.getRegistration().then((reg) => reg?.update().catch(() => {}));
+    };
+    sw.addEventListener("controllerchange", onControllerChange);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      sw.removeEventListener("controllerchange", onControllerChange);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<"checking" | "ok" | "login" | "offline">("checking");
   const router = useRouter();
+  useAppUpdates();
 
   useEffect(() => {
     void navigator.storage?.persist?.().catch(() => {});
     signInState().then((s) => {
       setState(s);
       if (s === "login") router.replace("/login");
-      if (s === "ok") void syncNow();
+      if (s === "ok") void syncNow(); // harmless before the background check: the server refuses another account's data
     });
     const kick = () => void syncNow();
     const onVis = () => document.visibilityState === "visible" && kick();

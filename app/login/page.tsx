@@ -10,6 +10,14 @@ const NOTICES: Record<string, string> = {
   verified: "Email confirmed. Sign in to start.",
 };
 
+// Auth.js sends its error code back in the URL. Saying which one it was makes a failed sign-in diagnosable.
+const SIGN_IN_ERRORS: Record<string, string> = {
+  AccessDenied: "Google didn't confirm this email, or the sign-in was cancelled. Try again.",
+  Configuration: "Sign-in hit a server problem. Try again in a moment.",
+  OAuthCallbackError: "Google sign-in was interrupted. Try again.",
+  OAuthSignin: "Couldn't reach Google. Check your connection and try again.",
+};
+
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ notice?: string; error?: string }> }) {
   let signedIn = false;
   try {
@@ -50,7 +58,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       )}
       {error && (
         <p role="alert" className="text-sm font-semibold text-danger">
-          Sign-in didn't finish. Try again.
+          {SIGN_IN_ERRORS[error] ?? "Sign-in didn't finish. Try again."} <span className="font-normal text-muted">({error})</span>
         </p>
       )}
       <LoginForm />

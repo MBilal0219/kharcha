@@ -71,6 +71,7 @@ function toClient(doc: Document) {
 export interface SyncBody {
   since: string | null;
   epoch?: number;
+  user?: string; // the account whose data the phone holds
   changes: Partial<Record<SyncTable, unknown[]>>;
 }
 

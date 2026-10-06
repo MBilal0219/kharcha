@@ -27,7 +27,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => ({
   providers: [
     // Linking by email is safe here: Google emails are checked below, and password accounts
     // are only created after the email is confirmed (lib/server/accounts.ts).
-    ...(googleEnabled() ? [Google({ allowDangerousEmailAccountLinking: true })] : []),
+    // `select_account` makes Google always ask which account, instead of silently reusing the last one.
+    ...(googleEnabled() ? [Google({ allowDangerousEmailAccountLinking: true, authorization: { params: { prompt: "select_account" } } })] : []),
     Credentials({
       credentials: { email: {}, password: {} },
       async authorize(raw, request) {

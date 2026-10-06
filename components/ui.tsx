@@ -242,10 +242,12 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
       else place(0, true);
     };
 
-    // Touch: anywhere on the sheet, as long as its content is scrolled to the top (otherwise the finger scrolls).
+    // Touch: the handle and title always drag; the content drags only when scrolled to its top (otherwise the finger scrolls it).
+    const body = el.querySelector<HTMLElement>("[data-sheet-body]");
     let touchY: number | null = null;
     const onTouchStart = (e: TouchEvent) => {
-      touchY = el.scrollTop <= 0 ? e.touches[0].clientY : null;
+      const onGrip = Boolean((e.target as HTMLElement).closest("[data-sheet-grip]"));
+      touchY = onGrip || (body?.scrollTop ?? 0) <= 0 ? e.touches[0].clientY : null;
       dragging = false;
     };
     const onTouchMove = (e: TouchEvent) => {
@@ -299,19 +301,21 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
       <div
         ref={panel}
         tabIndex={-1}
-        className="sheet-pad relative max-h-[88dvh] w-full max-w-lg overflow-y-auto overscroll-contain rounded-t-[28px] bg-surface px-4 pt-3 shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.35)] outline-none"
+        className="relative flex max-h-[88dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[28px] bg-surface pt-3 shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.35)] outline-none"
         style={{ transform: "translateY(100%)" }}
       >
-        <div data-sheet-grip className="cursor-grab touch-none select-none active:cursor-grabbing">
+        <div data-sheet-grip className="shrink-0 cursor-grab touch-none select-none px-4 active:cursor-grabbing">
           <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-surface-3" />
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-3 flex items-center justify-between">
             <h3 className="font-display text-xl font-semibold tracking-tight">{last.current.title}</h3>
             <button onClick={onClose} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-full bg-surface-2 text-ink-2">
               <X size={18} />
             </button>
           </div>
         </div>
-        {last.current.children}
+        <div data-sheet-body className="sheet-pad min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-1">
+          {last.current.children}
+        </div>
       </div>
     </div>
   );

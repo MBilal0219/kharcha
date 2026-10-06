@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import { defaultCache } from "@serwist/next/worker";
-import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
-import { Serwist } from "serwist";
+import type { PrecacheEntry, RuntimeCaching, SerwistGlobalConfig } from "serwist";
+import { NetworkOnly, Serwist } from "serwist";
 import { localDb } from "@/lib/local/db";
 import { syncNow } from "@/lib/local/sync";
 
@@ -12,12 +12,45 @@ declare global {
 }
 declare const self: ServiceWorkerGlobalScope;
 
+// Every screen is precached, and all of the user's data is on the phone. The rules below keep it that way
+// when there is no signal, or a signal that connects but never answers.
+const SCREEN_DATA_TIMEOUT_MS = 1500;
+
+const offlineFirst: RuntimeCaching[] = [
+  {
+    // Moving between screens asks the server for a small data file. That must fail fast when the network
+    // can't answer: Next.js then loads the screen itself, which comes straight from the precache.
+    matcher: ({ request, sameOrigin }) => sameOrigin && request.headers.get("RSC") === "1",
+    handler: async ({ request }) => {
+      if (!self.navigator.onLine) return Response.error();
+      const stop = new AbortController();
+      const giveUp = new Promise<Response>((resolve) =>
+        setTimeout(() => {
+          stop.abort();
+          resolve(Response.error());
+        }, SCREEN_DATA_TIMEOUT_MS),
+      );
+      return Promise.race([fetch(request.url, { headers: request.headers, credentials: "same-origin", signal: stop.signal }).catch(() => Response.error()), giveUp]);
+    },
+  },
+  {
+    // Never answer the API from a cache: a stored /api/me could name a different account than the one signed in.
+    matcher: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith("/api/"),
+    handler: new NetworkOnly(),
+  },
+];
+
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
+  // A screen is the same file whatever follows the "?" (/add?type=income, /money?tab=loans, /add?id=…).
+  // Except `_rsc`: that marks a screen-data request, which is not the screen and must go to the rule above.
+  precacheOptions: { ignoreURLParametersMatching: [/^(?!_rsc$)/] },
   skipWaiting: true,
   clientsClaim: true,
-  navigationPreload: true,
-  runtimeCaching: defaultCache,
+  // Off on purpose: with preload on, even a precached screen waits for the network to answer first,
+  // so on a connection that hangs the app never opens.
+  navigationPreload: false,
+  runtimeCaching: [...offlineFirst, ...defaultCache],
   fallbacks: {
     entries: [{ url: "/offline", matcher: ({ request }) => request.destination === "document" }],
   },

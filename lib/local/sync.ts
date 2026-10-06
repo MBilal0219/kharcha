@@ -1,4 +1,4 @@
-import { localDb, getMeta, setMeta } from "./db";
+import { localDb, getMeta, setMeta, type CachedUser } from "./db";
 import { SYNC_TABLES, type SyncTable } from "@/lib/types";
 
 // Push dirty rows, pull server changes. Safe to call from the page or the service worker.
@@ -43,7 +43,7 @@ async function doSync(afterReset = false): Promise<void> {
     await setState({ status: "offline" });
     return;
   }
-  const user = await getMeta("user");
+  const user = await getMeta<CachedUser>("user");
   if (!user || (await getMeta("demo"))) return; // not signed in on this device yet, or demo mode
 
   const since = (await getMeta<string>("lastPulledAt")) ?? null;
@@ -60,10 +60,16 @@ async function doSync(afterReset = false): Promise<void> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
-      body: JSON.stringify({ since, changes, epoch: (await getMeta<number>("epoch")) ?? 0 }),
+      // `user` is whose data this phone holds; the server refuses it if someone else is signed in.
+      body: JSON.stringify({ since, changes, epoch: (await getMeta<number>("epoch")) ?? 0, user: user.id }),
+      signal: AbortSignal.timeout(30_000), // a connection that never answers counts as offline
     });
   } catch {
     await setState({ status: "offline" });
+    return;
+  }
+  if (res.status === 409) {
+    await setState({ status: "needs-login", message: "Another account is signed in on this browser." });
     return;
   }
   if (res.status === 401) {
