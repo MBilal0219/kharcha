@@ -82,6 +82,10 @@ interface Payload {
 self.addEventListener("push", (event) => {
   event.waitUntil(
     (async () => {
+      // A push is the one moment the phone lets a closed app run, also on iPhone, which has no background sync.
+      // Use it to send anything that is still waiting.
+      const syncing = syncNow().catch(() => {});
+
       let p: Payload = { kind: "test", title: "Kharcha", body: "" };
       try {
         p = event.data?.json() as Payload;
@@ -105,7 +109,6 @@ self.addEventListener("push", (event) => {
                 : "All good. See you tomorrow.",
               url: "/",
             };
-            void syncNow();
           }
         } catch {
           /* fall back to the server's message */
@@ -119,6 +122,7 @@ self.addEventListener("push", (event) => {
         tag: `kharcha-${p.kind}`,
         data: { url: p.url ?? "/" },
       });
+      await Promise.race([syncing, new Promise((r) => setTimeout(r, 10_000))]); // keep the worker alive while the sync finishes
     })(),
   );
 });
