@@ -197,8 +197,10 @@ export function AddScreen() {
 
       {!editing && <Segmented className="mt-1" value={mode} onChange={(m) => { setMode(m); setCategoryId(undefined); }} options={MODES} />}
 
-      <div className="py-4">
+      {/* What it was for comes straight after how much, while it is still in mind. */}
+      <div className="space-y-2 py-4">
         <AmountInput id="entry-amount" value={amount} onChange={setAmount} size="xl" autoFocus={!editId} />
+        <input id="entry-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What was it for? (optional)" maxLength={120} className={inputClass} />
       </div>
 
       <div className="flex-1 space-y-4 pb-4">
@@ -409,7 +411,6 @@ export function AddScreen() {
 
         <DayPicker id="entry-day" value={day} onChange={setDay} today={d.today} />
 
-        <input id="entry-note" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" maxLength={120} className={inputClass} />
       </div>
 
       <div className="sticky bottom-0 -mx-4 border-t border-line bg-bg/95 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3 backdrop-blur">

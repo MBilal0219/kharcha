@@ -13,6 +13,7 @@ import { money, parseAmount, toInput } from "@/lib/money";
 import { AmountInput } from "@/components/amount-input";
 import { CashCountSheet } from "@/components/cash-count";
 import { WalletSheet, type WalletDraft } from "@/components/wallet-sheet";
+import { LinkRequests, PeopleCard } from "@/components/people-links";
 import { Button, Card, Empty, Field, Progress, Segmented, SectionTitle, Sheet, inputClass, toast, cx } from "@/components/ui";
 
 type Tab = "wallets" | "savings" | "loans";
@@ -281,6 +282,8 @@ function Loans() {
         </Card>
       </div>
 
+      <LinkRequests />
+
       <Link href="/add?type=loan" className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-accent font-semibold text-accent-ink">
         <HandCoins size={18} /> Record a loan
       </Link>
@@ -303,6 +306,8 @@ function Loans() {
           )}
         </>
       )}
+
+      <PeopleCard />
 
       {closed.length > 0 && (
         <details className="rounded-3xl bg-surface p-4 shadow-card">

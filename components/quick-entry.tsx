@@ -57,8 +57,8 @@ export function QuickEntrySheet({ entry, onClose }: { entry: QuickEntry | null; 
           }}
         >
           <AmountInput id="quick-amount" value={amount} onChange={setAmount} size="xl" autoFocus />
+          <input id="quick-note" className={inputClass} value={note} maxLength={120} placeholder="What was it for? (optional)" onChange={(e) => setNote(e.target.value)} />
           <DayPicker id="quick-day" value={day} onChange={setDay} today={today} />
-          <input id="quick-note" className={inputClass} value={note} maxLength={120} placeholder="Note (optional)" onChange={(e) => setNote(e.target.value)} />
           <Button type="submit" size="lg" className="w-full" disabled={!value || busy}>
             {income ? "Add money in" : "Save expense"}
           </Button>

@@ -30,6 +30,7 @@ export const schemas: Record<SyncTable, z.ZodTypeAny> = {
     categoryId: id.optional(),
     loanId: id.optional(),
     goalId: id.optional(),
+    by: id.optional(),
     reserveId: id.optional(),
     needWant: z.enum(["need", "want"]),
     isOneOff: z.boolean(),
@@ -48,7 +49,14 @@ export const schemas: Record<SyncTable, z.ZodTypeAny> = {
     archived: z.boolean(),
     sort: z.number(),
   }),
-  people: z.object({ ...base, name: text(60) }),
+  people: z.object({
+    ...base,
+    name: text(60),
+    // Shown only; the server decides who is linked from its own `links` records, never from these.
+    email: text(254).nullable().optional(),
+    link: z.enum(["invited", "linked"]).nullable().optional(),
+    linkedUserId: id.nullable().optional(),
+  }),
   loans: z.object({
     ...base,
     personId: id.nullable(),
@@ -59,6 +67,7 @@ export const schemas: Record<SyncTable, z.ZodTypeAny> = {
     status: z.enum(["open", "closed"]),
     note: text(300).optional(),
     createdDay: day,
+    by: id.optional(),
   }),
   goals: z.object({
     ...base,

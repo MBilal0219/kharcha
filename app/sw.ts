@@ -3,7 +3,7 @@ import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, RuntimeCaching, SerwistGlobalConfig } from "serwist";
 import { NetworkOnly, Serwist } from "serwist";
 import { localDb } from "@/lib/local/db";
-import { syncNow } from "@/lib/local/sync";
+import { pendingCount, syncNow } from "@/lib/local/sync";
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -60,7 +60,14 @@ serwist.addEventListeners();
 // ---- Background Sync (Android Chrome): push unsynced entries even after the app is closed ----
 self.addEventListener("sync", (event) => {
   const e = event as Event & { tag: string; waitUntil(p: Promise<unknown>): void };
-  if (e.tag === "kharcha-sync") e.waitUntil(syncNow());
+  if (e.tag !== "kharcha-sync") return;
+  // The browser runs this when the connection is back, with the app closed. If entries are still waiting
+  // afterwards (the connection dropped again, the server didn't answer), fail, so the browser tries again later.
+  e.waitUntil(
+    syncNow().then(async () => {
+      if ((await pendingCount()) > 0) throw new Error("entries still waiting to sync");
+    }),
+  );
 });
 
 // ---- Push notifications ----

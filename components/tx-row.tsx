@@ -20,6 +20,7 @@ export function TxRow({ tx, showDay }: { tx: Tx & { dirty?: 0 | 1 }; showDay?: b
     tx.note,
     tx.type === "expense" && tx.needWant === "want" ? "Want" : null,
     tx.isOneOff ? "One-off" : null,
+    tx.by ? `Added by ${d.people.find((p) => p.linkedUserId === tx.by)?.name ?? "the other person"}` : null,
     tx.reserveId ? d.allReserves.find((r) => r.id === tx.reserveId)?.name ?? "Reserve" : null,
     d.wallets.length > 1 && wallet && inWallet ? wallet.name : null,
   ]

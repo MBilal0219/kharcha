@@ -24,8 +24,14 @@ export default function PrivacyPage() {
           sign-in only if you choose it).
         </p>
       </Part>
+      <Part title="Sharing with a linked person">
+        <p>
+          If you invite someone to link, we email the address you enter. Once they accept, the loans and repayments between the two of you are
+          shown to both. Nothing else in either account is shared, and either of you can stop sharing at any time.
+        </p>
+      </Part>
       <Part title="What we don't do">
-        <List items={["No ads.", "No analytics or tracking scripts.", "We don't sell or share your data.", "One cookie only: the one that keeps you signed in."]} />
+        <List items={["No ads.", "No analytics or tracking scripts.", "We don't sell your data or share it with anyone you haven't linked with.", "One cookie only: the one that keeps you signed in."]} />
       </Part>
       <Part title="Your controls">
         <List

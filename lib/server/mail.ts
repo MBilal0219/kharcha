@@ -23,8 +23,15 @@ function smtp(): Transporter {
   return transport;
 }
 
+// Domains reserved for documentation and testing (RFC 2606 / 6761). Nothing sent there can arrive; it would only bounce.
+const RESERVED = /@(example\.(com|org|net)|[^@]+\.(test|example|invalid|localhost))$/i;
+
 /** Sends over SMTP. Without SMTP_HOST, development prints the email to the server console. */
 export async function sendMail(mail: { to: string; subject: string; text: string }) {
+  if (RESERVED.test(mail.to)) {
+    if (process.env.NODE_ENV !== "production") console.log(`\n--- email to ${mail.to} (not sent: reserved address) ---\n${mail.subject}\n\n${mail.text}\n---\n`);
+    return;
+  }
   if (!process.env.SMTP_HOST) {
     if (process.env.NODE_ENV === "production") throw new Error("SMTP_HOST is not set");
     console.log(`\n--- email to ${mail.to} ---\n${mail.subject}\n\n${mail.text}\n---\n`);

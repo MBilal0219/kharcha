@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { summarizePeriod, indexCategories, moneySplit, walletBalances, loanStates, loggingStreak, goalBalances } from "@/lib/budget/calc";
 import { isWorkDay, periodOf, reserveAmountFor, sortSchedules, type Overrides, type ScheduleLike } from "@/lib/budget/period";
 import { buildReport } from "@/lib/budget/report";
+import { flipId, isSharedTx, mirrorLoan, mirrorTx } from "@/lib/links/mirror";
 import { localDay, weekStartOf, dayIndex } from "@/lib/budget/week";
 import { money, num, parseAmount, toInput } from "@/lib/money";
 import type { Category, Tx, Wallet, Loan, Goal, Reserve } from "@/lib/types";
@@ -269,6 +270,46 @@ describe("report", () => {
     expect(r.daily.find((d) => d.day === "2026-10-03")?.spent).toBe(0);
     expect(r.daily.find((d) => d.day === WEEK)).toEqual({ day: WEEK, spent: R(200), income: R(2650), saved: R(100) });
     expect(r.weekly[0]).toEqual({ weekStart: WEEK, income: R(2650), spent: R(630), saved: R(100) });
+  });
+});
+
+describe("linked people", () => {
+  const loan: Loan = { id: "l1", personId: "p-ahmed", direction: "borrowed", principal: R(500), dueDate: "2026-10-10", status: "open", createdDay: WEEK, ...meta };
+  const taken = tx({ type: "loan_taken", amount: R(500), day: WEEK, loanId: "l1", walletId: "w-cash", note: "Short this week" });
+
+  it("shows the other person the same loan from their side", () => {
+    const theirs = mirrorLoan(loan, "me", "ahmed", "p-me");
+    expect(theirs).toMatchObject({ id: "l1:m", personId: "p-me", direction: "lent", principal: R(500), dueDate: "2026-10-10", by: "me" });
+    const t = mirrorTx(taken, "me", "ahmed");
+    expect(t).toMatchObject({ id: taken.id + ":m", type: "loan_given", loanId: "l1:m", amount: R(500), day: WEEK, by: "me" });
+    expect(t.walletId).toBeUndefined(); // wallets are each person's own
+
+    // Both sides work out the same amount still owed.
+    const repay = tx({ type: "loan_repaid", amount: R(200), day: "2026-09-30", loanId: "l1" });
+    const mine = loanStates([loan], [taken, repay])[0];
+    const other = loanStates([theirs], [t, mirrorTx(repay, "me", "ahmed")])[0];
+    expect([mine.outstanding, other.outstanding]).toEqual([R(300), R(300)]);
+  });
+
+  it("goes back to the original when the other person changes their copy", () => {
+    const theirs = { ...mirrorLoan(loan, "me", "ahmed", "p-me"), status: "closed" as const, updatedAt: "2026-10-02T00:00:00Z" };
+    const back = mirrorLoan(theirs, "ahmed", "me", "p-ahmed");
+    expect(back).toMatchObject({ id: "l1", personId: "p-ahmed", direction: "borrowed", status: "closed", updatedAt: "2026-10-02T00:00:00Z" });
+    expect(back.by).toBeUndefined(); // it is still my own loan
+    expect(flipId(flipId("abc"))).toBe("abc");
+  });
+
+  it("marks an entry the other person added", () => {
+    const collected = tx({ type: "loan_collected", amount: R(100), day: "2026-10-01", loanId: "l1:m" }); // Ahmed records that I paid him
+    const mine = mirrorTx(collected, "ahmed", "me");
+    expect(mine).toMatchObject({ type: "loan_repaid", loanId: "l1", by: "ahmed" });
+  });
+
+  it("shares only loan movements between people", () => {
+    expect(isSharedTx(taken)).toBe(true);
+    expect(isSharedTx(tx({ type: "expense", amount: 1, day: WEEK }))).toBe(false);
+    expect(isSharedTx(tx({ type: "saving", amount: 1, day: WEEK, loanId: "l2" }))).toBe(false); // paying back your own savings
+    expect(isSharedTx(tx({ type: "loan_taken", amount: 1, day: WEEK }))).toBe(false);
   });
 });
 

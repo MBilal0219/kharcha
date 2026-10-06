@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { AuthError, type CredentialsSignin } from "next-auth";
 import { googleEnabled, signIn, signOut } from "@/lib/auth/config";
 import { currentUser } from "@/lib/auth/require-user";
-import { EmailInput, ResetInput, SignupInput, completeReset, revokeSessions, startReset, startSignup } from "@/lib/server/accounts";
+import { EmailInput, JoinInput, ResetInput, SignupInput, completeReset, createVerifiedUser, revokeSessions, startReset, startSignup, userByEmail } from "@/lib/server/accounts";
+import { LinkError, byToken, respond } from "@/lib/server/links";
 import { clientIp, rateLimit } from "@/lib/server/rate-limit";
 
 export interface FormState {
@@ -81,6 +82,48 @@ export async function forgotAction(_prev: FormState, form: FormData): Promise<Fo
     return { error: "Couldn't send the email. Try again later.", values };
   }
   return { done: "If that email has an account, a reset link is on its way." };
+}
+
+/** From an invitation link, for someone without an account: the link proves the email, so the account is created at once. */
+export async function joinByInviteAction(_prev: FormState, form: FormData): Promise<FormState> {
+  const values = { name: field(form, "name") };
+  const parsed = JoinInput.safeParse({ token: field(form, "token"), ...values, password: field(form, "password") });
+  if (!parsed.success) {
+    const bad = parsed.error.issues[0]?.path[0];
+    return { error: bad === "password" ? "Use a password of at least 8 characters." : bad === "name" ? "Enter your name." : "This invitation doesn't work. Ask for a new one.", values };
+  }
+  let email = "";
+  try {
+    if (!(await rateLimit(`join:ip:${clientIp(await headers())}`, 10, 60 * 60))) return { error: TOO_MANY, values };
+    const link = await byToken(parsed.data.token);
+    if (!link) return { error: "This invitation has expired. Ask them to send it again.", values };
+    if (await userByEmail(link.email)) return { error: "This email already has an account. Sign in, then accept under Money → Loans.", values };
+    email = link.email;
+    const user = await createVerifiedUser({ name: parsed.data.name, email, password: parsed.data.password });
+    await respond(user, { token: parsed.data.token }, true);
+  } catch (e) {
+    console.error(e);
+    return { error: "Couldn't create the account. Try again.", values };
+  }
+  try {
+    await signIn("credentials", { email, password: parsed.data.password, redirectTo: "/" });
+  } catch (e) {
+    if (!(e instanceof AuthError)) throw e; // the redirect after signing in
+    return { done: "Account created. Sign in to continue." };
+  }
+  return {};
+}
+
+/** Accept or decline from the invitation page, when already signed in as the invited email. */
+export async function respondInviteAction(form: FormData) {
+  const user = await currentUser();
+  if (!user) redirect("/login");
+  try {
+    await respond(user, { token: field(form, "token") }, field(form, "accept") === "1");
+  } catch (e) {
+    if (!(e instanceof LinkError)) throw e; // already answered or expired: the Loans screen shows the current state
+  }
+  redirect("/money?tab=loans");
 }
 
 export async function resetAction(_prev: FormState, form: FormData): Promise<FormState> {

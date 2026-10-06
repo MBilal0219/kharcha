@@ -4,7 +4,8 @@ import type { Db, Document } from "mongodb";
 import { db } from "@/lib/db/client";
 import { schemas } from "@/lib/db/schemas";
 import { starterData } from "@/lib/seed";
-import { SYNC_TABLES, type SyncTable } from "@/lib/types";
+import { mirrorChanges } from "./links";
+import { SYNC_TABLES, type Loan, type SyncTable, type Tx } from "@/lib/types";
 
 const MAX_ROWS_PER_TABLE = 2000;
 const MAX_ROWS_PER_USER = 20_000; // per table, tombstones included: years of normal use, but one account can't fill the cluster
@@ -84,6 +85,7 @@ export async function handleSync(userId: string, body: SyncBody) {
   const accepted: Partial<Record<SyncTable, { id: string; updatedAt: string }[]>> = {};
   const serverChanges: Partial<Record<SyncTable, Record<string, unknown>[]>> = {};
   const rejected: { table: string; id?: string; reason: string }[] = [];
+  const saved = { loans: [] as Loan[], transactions: [] as Tx[] }; // what this sync actually changed, for linked people
 
   for (const table of SYNC_TABLES) {
     const incoming = (body.changes?.[table] ?? []).slice(0, MAX_ROWS_PER_TABLE);
@@ -135,6 +137,8 @@ export async function handleSync(userId: string, body: SyncBody) {
         stale.push(toClient(cur)); // server copy is newer: send it back so the phone takes it
         continue;
       }
+      if (table === "loans") saved.loans.push(row as unknown as Loan);
+      if (table === "transactions") saved.transactions.push(row as unknown as Tx);
       ops.push({
         replaceOne: {
           filter: { _id: id as unknown as Document["_id"], userId },
@@ -147,6 +151,9 @@ export async function handleSync(userId: string, body: SyncBody) {
     accepted[table] = acc;
     if (stale.length) serverChanges[table] = stale;
   }
+
+  // After every table is saved (a movement can arrive in the same sync as its loan).
+  await mirrorChanges(database, userId, saved, serverNow);
 
   // Pull everything that changed on the server since the phone's cursor.
   for (const table of SYNC_TABLES) {

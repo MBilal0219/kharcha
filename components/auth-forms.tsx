@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
-import { forgotAction, loginAction, resetAction, signUpAction, type FormState } from "@/app/actions";
+import { forgotAction, joinByInviteAction, loginAction, resetAction, signUpAction, type FormState } from "@/app/actions";
 import { Button, Field, inputClass } from "./ui";
 
 function Submit({ children }: { children: ReactNode }) {
@@ -74,6 +74,26 @@ export function SignupForm() {
       <PasswordField isNew />
       <Message state={state} />
       <Submit>Create account</Submit>
+    </form>
+  );
+}
+
+/** Create an account straight from an invitation: the email is fixed, because the link was sent to it. */
+export function JoinForm({ token, email }: { token: string; email: string }) {
+  const [state, action] = useActionState(joinByInviteAction, {});
+  if (state.done) return <Message state={state} />;
+  return (
+    <form action={action} className="space-y-4">
+      <input type="hidden" name="token" value={token} />
+      <Field label="Email">
+        <input value={email} readOnly className={inputClass + " text-muted"} />
+      </Field>
+      <Field label="Your name">
+        <input name="name" required maxLength={60} autoComplete="name" defaultValue={state.values?.name} className={inputClass} />
+      </Field>
+      <PasswordField isNew />
+      <Message state={state} />
+      <Submit>Create account and accept</Submit>
     </form>
   );
 }

@@ -29,6 +29,7 @@ export interface Tx extends SyncMeta {
   categoryId?: string;
   loanId?: string;
   goalId?: string;
+  by?: string; // user id of the linked person who added this entry, when it wasn't you
   reserveId?: string; // an expense paid out of a set-aside amount (not counted as daily spending), or a saving that meets a saving target
   needWant: NeedWant;
   isOneOff: boolean;
@@ -58,6 +59,11 @@ export interface Category extends SyncMeta {
 
 export interface Person extends SyncMeta {
   name: string;
+  // Linking, set by the server (lib/server/links.ts). A linked person is another Kharcha user:
+  // loans between the two of you are kept in step on both accounts.
+  email?: string | null;
+  link?: "invited" | "linked" | null;
+  linkedUserId?: string | null;
 }
 
 export interface Loan extends SyncMeta {
@@ -69,6 +75,7 @@ export interface Loan extends SyncMeta {
   status: "open" | "closed";
   note?: string;
   createdDay: string;
+  by?: string; // user id of the linked person who recorded this loan, when it wasn't you
 }
 
 export interface Goal extends SyncMeta {

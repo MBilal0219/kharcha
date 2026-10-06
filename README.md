@@ -9,6 +9,7 @@ A budget tracker that tells you how much you can safely spend **today**. You cho
 - **Set aside.** Money kept out of the daily budget until it is paid or saved: something to pay (the fare home, rent, a gift this weekend) or an amount to save each period. Each one repeats every period or applies to this period only.
 - **Fast logging.** Tap a category on the home screen, type the amount, save. One-tap buttons for things you buy often at the same price.
 - **Money in.** Your budget plus any other income (salary, freelance, gifts), by category. Extra income prompts you to save part of it.
+- **Linked people.** Invite someone you track loans with by email. Once they accept (creating an account from the link if they have none), every loan and repayment between you shows on both accounts, whoever adds it. Nothing else is shared.
 - **Loans.** Borrow, lend, pay back, collect. People are saved by name (no duplicates) and picked from a list. Due dates, overdue warnings, a "debt-free in N weeks" estimate, and "borrow from my own savings".
 - **Savings.** An emergency buffer you fill first, then goals with target dates. Prompts to save extra income and the period's leftover.
 - **Cash check.** You count the cash in your pocket and the app shows the gap against your ledger, so untracked spending can't hide.
@@ -21,7 +22,7 @@ A budget tracker that tells you how much you can safely spend **today**. You cho
   - A push notification in your evening (your own time zone), but only if nothing is logged today
   - Loan-due alerts and a summary on the last day of your budget period
   - An in-app banner as backup
-- **Offline-first.** Everything is saved on the phone first (IndexedDB) and synced to MongoDB when you're online. Android can sync in the background after you close the app.
+- **Offline-first.** Everything is saved on the phone first (IndexedDB) and synced to MongoDB when you're online. On Android (Chrome, Edge) entries added offline sync in the background when the connection returns, even with the app closed; elsewhere they sync when the app is next opened.
 - **Wallets, need/want tags, one-off flag, category limits, logging streak, light and dark mode.**
 
 Shared groups with expense splitting are planned but not built yet.

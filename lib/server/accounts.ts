@@ -4,6 +4,7 @@ import { ObjectId, type Db } from "mongodb";
 import { z } from "zod";
 import { db } from "@/lib/db/client";
 import { SYNC_TABLES } from "@/lib/types";
+import { endAll as endAllLinks } from "./links";
 import { appUrl, sendMail } from "./mail";
 
 // Email + password accounts, stored next to the Auth.js collections.
@@ -45,6 +46,7 @@ const password = z.string().min(8).max(128);
 export const LoginInput = z.object({ email, password: z.string().min(1).max(128) });
 export const SignupInput = z.object({ name: z.string().trim().min(1).max(60), email, password });
 export const EmailInput = z.object({ email });
+export const JoinInput = z.object({ token: z.string().min(20).max(100), name: z.string().trim().min(1).max(60), password });
 export const ResetInput = z.object({ token: z.string().min(20).max(100), password });
 
 const cols = (database: Db) => ({
@@ -158,6 +160,24 @@ export async function completeSignup(token: string): Promise<boolean> {
   return true;
 }
 
+export async function userByEmail(email: string): Promise<SessionUser | null> {
+  const { users } = await open();
+  const u = await users.findOne({ email: email.toLowerCase() });
+  return u ? { id: u._id.toHexString(), name: u.name ?? "", email: u.email, image: u.image ?? null } : null;
+}
+
+/**
+ * Creates a password account whose email is already proven, because the caller holds a secret link
+ * that was sent to that address (an invitation). Never call this for an email that hasn't been proven.
+ */
+export async function createVerifiedUser(input: { name: string; email: string; password: string }): Promise<SessionUser> {
+  const { users, credentials } = await open();
+  const email = input.email.toLowerCase();
+  const { insertedId } = await users.insertOne({ _id: new ObjectId(), name: input.name, email, emailVerified: new Date(), image: null });
+  await credentials.insertOne({ _id: insertedId.toHexString(), hash: await hashPassword(input.password), updatedAt: new Date() });
+  return { id: insertedId.toHexString(), name: input.name, email, image: null };
+}
+
 /** Emails a reset link if the account exists. Also how a Google-only account gets a password. */
 export async function startReset(input: z.infer<typeof EmailInput>) {
   const { users, tokens } = await open();
@@ -205,6 +225,7 @@ export async function dataEpoch(userId: string): Promise<number> {
 /** Start over: removes every entry and setting but keeps the account. The next sync seeds it like a new one. */
 export async function resetUserData(userId: string) {
   const database = await db();
+  await endAllLinks(userId); // the linked people keep their copies; nothing flows either way any more
   await Promise.all([...SYNC_TABLES.map((t) => database.collection(t).deleteMany({ userId })), database.collection("reminderLog").deleteMany({ userId })]);
   await database.collection<UserDoc>("users").updateOne({ _id: new ObjectId(userId) }, { $inc: { dataEpoch: 1 } });
 }
@@ -214,6 +235,7 @@ export async function deleteAccount(userId: string) {
   const { database, users, credentials, tokens } = await open();
   const _id = new ObjectId(userId);
   const user = await users.findOne({ _id });
+  await endAllLinks(userId);
   await Promise.all([
     ...SYNC_TABLES.map((t) => database.collection(t).deleteMany({ userId })),
     database.collection("pushSubscriptions").deleteMany({ userId }),

@@ -20,22 +20,22 @@ async function setState(patch: Partial<SyncState>) {
   await setMeta("sync", { ...cur, ...patch });
 }
 
-let again = false;
+let queued: Promise<void> | null = null;
 
+/** Resolves once a sync that started after this call has finished, so the caller's own change is included. */
 export function syncNow(): Promise<void> {
-  if (running) {
-    // Something changed while a sync was in flight: it missed that change, so run once more when it ends.
-    again = true;
+  if (!running) {
+    running = doSync().finally(() => {
+      running = null;
+    });
     return running;
   }
-  running = doSync().finally(() => {
-    running = null;
-    if (again) {
-      again = false;
-      void syncNow();
-    }
+  // A sync is in flight and may have missed what just changed: run once more after it. Everyone waiting shares that run.
+  queued ??= running.then(() => {
+    queued = null;
+    return syncNow();
   });
-  return running;
+  return queued;
 }
 
 async function doSync(afterReset = false): Promise<void> {
