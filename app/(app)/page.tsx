@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { BellRing, CalendarCheck, ChevronDown, Coins, HandCoins, Lock, PiggyBank, Plus, Settings as Gear, Scale, Flame } from "lucide-react";
 import { useAppData } from "@/lib/local/app-data";
-import { addTx, closeDay, moveToGoal, remove, setPeriod } from "@/lib/local/ops";
+import { addTx, closeDay, moveToGoal, remove } from "@/lib/local/ops";
 import { periodNoun } from "@/lib/budget/period";
 import { reminderHours } from "@/lib/budget/reminders";
 import { dayLong, prettyRange } from "@/lib/budget/week";
@@ -22,13 +22,15 @@ import { BreakdownSheet } from "@/components/period-breakdown";
 import { MoneyBar } from "@/components/money-bar";
 import { WhereItWent } from "@/components/home-glance";
 import { ReserveSheet } from "@/components/reserve-sheet";
+import { LeftoverRibbon, LeftoverSheet } from "@/components/leftover-sheet";
 
 export default function HomePage() {
   const d = useAppData();
-  const { sum, prevSum, settings, period } = d;
+  const { sum, settings, period } = d;
   const [reserveOpen, setReserveOpen] = useState(false);
   const [breakdown, setBreakdown] = useState(false);
   const [cashOpen, setCashOpen] = useState(false);
+  const [leftOpen, setLeftOpen] = useState(false);
   const [entry, setEntry] = useState<QuickEntry | null>(null);
   const [newCat, setNewCat] = useState<CategoryDraft | null>(null);
 
@@ -40,10 +42,7 @@ export default function HomePage() {
   const expenseCats = d.categories.filter((c) => c.kind === "expense" && !c.archived && c.key !== "unaccounted");
   const budgetCat = d.categories.find((c) => c.key === "budget");
 
-  // An unpaid reserve from last period is still in your pocket, so it counts as leftover.
-  const prevLeft = Math.max(prevSum.spendable + prevSum.reserveLocked, 0);
-  const showSweep = prevLeft > 0 && prevSum.moneyIn > 0 && !d.periodSettings.get(period.start)?.sweptPrev;
-  const leftover = sum.reserves.find((r) => r.leftover > 0 && !d.periodTxs.some((t) => t.type === "saving" && t.note === `${r.reserve.name} leftover`));
+  const reserveLeft = sum.reserves.find((r) => r.leftover > 0 && !d.periodTxs.some((t) => t.type === "saving" && t.note === `${r.reserve.name} leftover`));
 
   const limited = d.categories
     .filter((c) => c.kind === "expense" && c.limit && !c.archived)
@@ -58,18 +57,6 @@ export default function HomePage() {
     if (!t) return;
     const tx = await addTx({ type: t.type, amount: t.amount, categoryId: t.categoryId, walletId: t.walletId, needWant: t.needWant, note: t.label });
     toast(`${t.label} · ${money(t.amount)} added`, { label: "Undo", run: () => void remove("transactions", tx.id) });
-  }
-
-  async function sweep(save: boolean) {
-    if (save && goal) {
-      // Dated in the last period so it comes out of that leftover, not this period's budget.
-      await moveToGoal(goal.id, prevLeft, `Last ${noun}'s leftover`, d.prevPeriod.end);
-      await setPeriod(period.start, { sweptPrev: true });
-      toast(`${money(prevLeft)} saved to ${goal.name}.`);
-    } else {
-      await setPeriod(period.start, { sweptPrev: true, carryIn: prevLeft });
-      toast(`${money(prevLeft)} carried into this ${noun}.`);
-    }
   }
 
   // ---- hero numbers ----
@@ -93,6 +80,8 @@ export default function HomePage() {
           </Link>
         </div>
       </header>
+
+      <LeftoverRibbon onOpen={() => setLeftOpen(true)} />
 
       {!sum.budgetLogged && budgetCat && (
         <Card className="anim-rise flex items-center gap-3 border border-accent/30">
@@ -229,44 +218,18 @@ export default function HomePage() {
         </Card>
       )}
 
-      {showSweep && (
-        <Card className="anim-rise">
-          <div className="flex items-start gap-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gold-soft text-gold">
-              <PiggyBank size={20} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold">
-                {money(prevLeft)} left from last {noun}
-              </p>
-              <p className="text-sm text-muted">{goal ? `Save it to ${goal.name}, or carry it into this ${noun}.` : `Carry it into this ${noun}?`}</p>
-            </div>
-          </div>
-          <div className="mt-3 flex gap-2">
-            <Button variant="outline" className="flex-1" onClick={() => sweep(false)}>
-              Carry over
-            </Button>
-            {goal && (
-              <Button className="flex-1" onClick={() => sweep(true)}>
-                Save it
-              </Button>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {leftover && goal && (
+      {reserveLeft && goal && (
         <Card className="flex items-center gap-3">
           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gold-soft text-gold">
             <Lock size={19} />
           </span>
           <div className="min-w-0 flex-1">
             <p className="font-semibold">
-              {leftover.reserve.name} cost {money(leftover.spent)}
+              {reserveLeft.reserve.name} cost {money(reserveLeft.spent)}
             </p>
-            <p className="text-sm text-muted">Save the {money(leftover.leftover)} left over from what you set aside?</p>
+            <p className="text-sm text-muted">Save the {money(reserveLeft.leftover)} left over from what you set aside?</p>
           </div>
-          <Button size="sm" onClick={() => moveToGoal(goal.id, leftover.leftover, `${leftover.reserve.name} leftover`).then(() => toast("Saved. Small wins add up."))}>
+          <Button size="sm" onClick={() => moveToGoal(goal.id, reserveLeft.leftover, `${reserveLeft.reserve.name} leftover`).then(() => toast("Saved. Small wins add up."))}>
             Save
           </Button>
         </Card>
@@ -372,6 +335,7 @@ export default function HomePage() {
       />
       <ReserveSheet open={reserveOpen} onClose={() => setReserveOpen(false)} />
       <CashCountSheet open={cashOpen} onClose={() => setCashOpen(false)} />
+      <LeftoverSheet open={leftOpen} onClose={() => setLeftOpen(false)} />
     </div>
   );
 }

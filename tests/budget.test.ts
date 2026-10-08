@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { summarizePeriod, indexCategories, moneySplit, walletBalances, loanStates, loggingStreak, goalBalances } from "@/lib/budget/calc";
 import { isWorkDay, periodOf, reserveAmountFor, sortSchedules, type Overrides, type ScheduleLike } from "@/lib/budget/period";
+import { leftoverFrom, pendingLeftover } from "@/lib/budget/leftover";
 import { buildReport } from "@/lib/budget/report";
 import { hourLabel, reminderHours, reminderSlot } from "@/lib/budget/reminders";
 import { flipId, isSharedTx, mirrorLoan, mirrorTx } from "@/lib/links/mirror";
@@ -366,5 +367,71 @@ describe("balances and loans", () => {
     expect(loggingStreak(days, "2026-10-03")).toBe(3);
     expect(loggingStreak(days, "2026-10-04")).toBe(3); // today not logged yet
     expect(loggingStreak(days, "2026-10-06")).toBe(0);
+  });
+});
+
+describe("leftover from ended periods", () => {
+  const schedules = sortSchedules([sixDay]);
+  const NOW = "2026-10-13"; // Tuesday, third week
+  const W1 = "2026-09-28";
+  const W2 = "2026-10-05";
+  const W3 = "2026-10-12";
+  const budget = (day: string, amount: number) => tx({ type: "income", amount, day, categoryId: "c-budget" });
+  const food = (day: string, amount: number) => tx({ type: "expense", amount, day, categoryId: "c-food" });
+  type Swept = Record<string, { sweptPrev: boolean; carryIn?: number }>;
+  const left = (txs: Tx[], swept: Swept = {}, today = NOW) =>
+    leftoverFrom({
+      txs,
+      cats,
+      reserves: [],
+      schedules,
+      settings: new Map(Object.entries(swept).map(([start, s]) => [start, { carryIn: 0, reservesOff: [], ...s }])),
+      period: periodOf(today, schedules),
+      today,
+      isWork: (d) => isWorkDay(d, schedules),
+    });
+
+  it("nets a run of periods, oldest first", () => {
+    expect(pendingLeftover([])).toBe(0);
+    expect(pendingLeftover([R(500), R(200)])).toBe(R(700));
+    expect(pendingLeftover([R(500), -R(200)])).toBe(R(300)); // a later overspend uses up earlier leftover
+    expect(pendingLeftover([-R(300), R(200)])).toBe(R(200)); // an old overspend is not held against later leftover
+  });
+
+  it("is what the last period ended with", () => {
+    const txs = [budget(W2, R(2500)), food(W2, R(2000)), budget(W3, R(2500))];
+    expect(left(txs)).toEqual({ amount: R(500), older: false });
+    expect(left([budget(W3, R(2500))])).toEqual({ amount: 0, older: false }); // nothing before this period
+  });
+
+  it("stays, and adds up, when a period passes without a decision", () => {
+    const txs = [budget(W1, R(2500)), food(W1, R(2000)), budget(W2, R(2500)), food(W2, R(2300))];
+    expect(left(txs)).toEqual({ amount: R(700), older: true });
+    expect(left(txs, {}, "2026-10-06")).toEqual({ amount: R(500), older: false }); // as seen during the second week
+  });
+
+  it("stops at the period where the earlier leftover was carried over", () => {
+    const txs = [budget(W1, R(2500)), food(W1, R(2000)), budget(W2, R(2500)), food(W2, R(2300))];
+    expect(left(txs, { [W3]: { sweptPrev: true, carryIn: R(700) } }).amount).toBe(0);
+    // Carried into the second week: that week's own leftover now includes it.
+    expect(left(txs, { [W2]: { sweptPrev: true, carryIn: R(500) } })).toEqual({ amount: R(700), older: false });
+  });
+
+  it("shrinks by what is logged in the last period, even past that period's own leftover", () => {
+    const txs = [budget(W1, R(2500)), food(W1, R(2000)), budget(W2, R(2500)), food(W2, R(2300))];
+    const lastDay = "2026-10-11";
+    expect(left([...txs, food(lastDay, R(300))]).amount).toBe(R(400));
+    expect(left([...txs, tx({ type: "saving", amount: R(600), day: lastDay, goalId: "g1" })])).toEqual({ amount: R(100), older: true });
+    expect(left([...txs, food(lastDay, R(900))]).amount).toBe(0);
+  });
+
+  it("counts a set-aside amount that was never paid, and looks back a limited number of periods", () => {
+    const txs = [budget(W2, R(2500)), food(W2, R(1500))];
+    const withFare = leftoverFrom({ txs, cats, reserves: [fare], schedules, settings: new Map(), period: periodOf(NOW, schedules), today: NOW, isWork: () => true });
+    expect(withFare.amount).toBe(R(1000)); // 500 free + 500 still held for the fare
+
+    const old = [budget("2026-01-05", R(900))];
+    expect(left(old, {}, "2026-03-23").amount).toBe(R(900)); // 11 periods back
+    expect(left(old, {}, "2026-04-06").amount).toBe(0); // 13 periods back
   });
 });

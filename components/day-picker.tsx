@@ -7,11 +7,12 @@ import { Chip, cx } from "./ui";
 
 /**
  * Which day an entry is for: today by default, the two days before one tap away, any earlier date from the calendar.
- * `min` keeps the choice inside a range (e.g. the current budget period).
+ * `min` and `max` keep the choice inside a range (e.g. a budget period); without `max` the last day is today.
  */
-export function DayPicker({ id, value, onChange, today, min }: { id: string; value: string; onChange: (day: string) => void; today: string; min?: string }) {
+export function DayPicker({ id, value, onChange, today, min, max }: { id: string; value: string; onChange: (day: string) => void; today: string; min?: string; max?: string }) {
   const input = useRef<HTMLInputElement>(null);
-  const recent = [today, addDay(today, -1), addDay(today, -2)].filter((x) => !min || x >= min);
+  const last = max && max < today ? max : today;
+  const recent = [last, addDay(last, -1), addDay(last, -2)].filter((x) => !min || x >= min);
   const other = !recent.includes(value);
 
   // A plain click on a date field doesn't open the calendar on desktop browsers, so ask for it.
@@ -51,7 +52,7 @@ export function DayPicker({ id, value, onChange, today, min }: { id: string; val
           ref={input}
           id={id}
           type="date"
-          max={today}
+          max={last}
           min={min}
           value={value}
           tabIndex={-1}

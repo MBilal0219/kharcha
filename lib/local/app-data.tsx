@@ -9,6 +9,7 @@ import {
   type CatIndex, type LoanState, type PeriodSummary,
 } from "@/lib/budget/calc";
 import { buildInsights, type Insight } from "@/lib/budget/insights";
+import { leftoverFrom } from "@/lib/budget/leftover";
 import { isWorkDay, periodOf, scheduleAt, sortSchedules, type Overrides, type Period, type ScheduleLike } from "@/lib/budget/period";
 import { addDay, localDay, localHour, DEFAULT_TZ } from "@/lib/budget/week";
 import { setCurrency } from "@/lib/money";
@@ -54,6 +55,7 @@ export interface AppData {
 
   sum: PeriodSummary;
   prevSum: PeriodSummary;
+  leftover: { amount: number; older: boolean }; // from ended periods, not dealt with yet
   walletBal: Map<string, number>;
   goalBal: Map<string, number>;
   loanStates: LoanState[];
@@ -141,6 +143,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
     const sum = summarizePeriod({ txs, cats, period, reserves: allReserves, setting: periodSettings.get(period.start), today, isWork });
     const prevSum = summarizePeriod({ txs, cats, period: prevPeriod, reserves: allReserves, setting: periodSettings.get(prevPeriod.start), today, isWork });
+    const leftover = leftoverFrom({ txs, cats, reserves: allReserves, schedules, settings: periodSettings, period, today, isWork });
     const periodTxs = txs.filter((t) => t.day >= period.start && t.day <= period.end);
     const states = loanStates(loans, txs);
     const owed = totalOwed(states);
@@ -192,6 +195,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       cashCounts: live(raw.cashCounts).sort((a, b) => (a.countedAt < b.countedAt ? 1 : -1)),
       sum,
       prevSum,
+      leftover,
       walletBal: walletBalances(txs, wallets),
       goalBal,
       loanStates: states,
